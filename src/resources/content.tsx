@@ -41,6 +41,11 @@ const social: Social = [
     icon: "email",
     link: `mailto:${person.email}`,
   },
+  {
+    name: "Currículo",
+    icon: "person", // Este ícone já existe na biblioteca do template
+    link: "/curriculo.pdf", // Certifique-se que o nome do ficheiro na pasta public é igual a este
+  },
 ];
 
 const home: Home = {
@@ -91,18 +96,20 @@ const about: About = {
   },
   calendar: {
     display: true,
-    link: `mailto:${person.email}`,
+    link: "https://wa.me/+5531996187719",
   },
   intro: {
     display: true,
     title: "Resumo",
     description: (
       <>
-        Profissional de Dados atuando como Técnico de Negócios, com experiência em Business Intelligence, SQL avançado, 
+        Profissional de Dados atuando como Técnico de Negócios, com experiência em Business Intelligence, SQL, 
         ETL, tratamento e análise de dados, automação e visualização de dados.
         <br /><br />
         Trabalho diretamente com construção de dashboards, definição de KPIs, extração de dados e modelagem para tomada de decisão.
-        Tenho forte atuação em análises operacionais e assistenciais, garantindo integridade e padronização de métricas corporativas
+        Tenho forte atuação em análises operacionais e assistenciais, garantindo integridade e padronização de métricas corporativas.
+        <br /><br />
+        Interesse em Ciência de Dados, Engenharia de Dados, IA e Aprendizado de Máquina.
       </>
     ),
   },
@@ -148,33 +155,54 @@ const about: About = {
     ],
   },
   technical: {
-    display: true, // set to false to hide this section
+    display: true,
     title: "Habilidades Técnicas",
     skills: [
       {
         title: "Business Intelligence",
-        description: <>Power BI, DAX, M, Power Query, ETL, Modelagem de Dados, KPIs e Dashboards.</>,
+        description: (
+          <>
+            Transformação de dados brutos em insights visuais e estratégicos para apoiar a tomada de decisão executiva e operacional.
+          </>
+        ),
         tags: [
-          { name: "Power BI", icon: "rocket" }, // Ícone genérico, ou importe um específico
+          { name: "Power BI", icon: "rocket" }, // Ícone sugerido
           { name: "DAX", icon: "code" },
+          { name: "Power Query", icon: "grid" },
+          { name: "ETL", icon: "arrowRight" },
+          { name: "Modelagem", icon: "grid" },
         ],
         images: [],
       },
       {
         title: "SQL & Bancos de Dados",
-        description: <>OracleSQL, PostgreSQL, MySQL, SQL Server, Query Optimization, Joins e Window Functions.</>,
+        description: (
+          <>
+            Manipulação avançada de dados, otimização de performance e extração de informações em ambientes de bancos de dados complexos.
+          </>
+        ),
         tags: [
-          { name: "SQL", icon: "database" },
+          { name: "OracleSQL", icon: "database" }, // Ícone sugerido
           { name: "PostgreSQL", icon: "database" },
+          { name: "SQL Server", icon: "database" },
+          { name: "MySQL", icon: "database" },
+          { name: "Tuning", icon: "eye" },
         ],
         images: [],
       },
       {
         title: "Python & Desenvolvimento",
-        description: <>Pandas, NumPy, Matplotlib, FastAPI, REST APIs e automação de scripts.</>,
+        description: (
+          <>
+            Desenvolvimento de scripts de automação, APIs para integração de sistemas e pipelines de engenharia de dados.
+          </>
+        ),
         tags: [
-          { name: "Python", icon: "javascript" }, // Pode trocar o ícone se importar 'python'
+          { name: "Python", icon: "python" }, // Usando ícone de código genérico se não tiver o do Python
+          { name: "Pandas", icon: "grid" },
           { name: "FastAPI", icon: "globe" },
+          { name: "Automação", icon: "rocket" },
+          { name: "Git", icon: "github" },
         ],
         images: [],
       },
@@ -193,9 +221,9 @@ const blog: Blog = {
 
 const work: Work = {
   path: "/work",
-  label: "Work",
-  title: `Projects – ${person.name}`,
-  description: `Design and dev projects by ${person.name}`,
+  label: "Projetos",
+  title: `Meus Projetos`,
+  description: `Projetos e Estudos - ${person.name}`,
   // Create new project pages by adding a new .mdx file to app/blog/posts
   // All projects will be listed on the /home and /work routes
 };

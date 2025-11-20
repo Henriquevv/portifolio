@@ -1,0 +1,48 @@
+---
+title: "PRISMA: Monitoramento de ETL em Tempo Real"
+publishedAt: "2025-10-20"
+summary: "Aplicação Full-Stack para monitoramento de pipelines de dados, validação de metas e análise de performance em tempo real."
+images:
+  - "/images/projects/prisma/dashboard-main.jpg"
+  - "/images/projects/prisma/architecture.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Engenheiro de Dados / Full Stack"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+## Visão Geral
+
+O **PRISMA** é uma solução centralizada desenvolvida para monitorar a saúde e o desempenho dos processos de ETL (Extração, Transformação e Carga) da Rede Primavera. A aplicação resolveu a necessidade de visibilidade em tempo real sobre jobs críticos, permitindo a deteção proativa de falhas e gargalos.
+
+## Arquitetura e Stack
+
+O sistema foi projetado com uma arquitetura de múltiplos processos para garantir alta disponibilidade e comunicação em tempo real:
+
+- **Backend:** Python com **Flask** e servidor WSGI **Eventlet** para suportar conexões assíncronas.
+- **Frontend:** Interface reativa construída com **HTML5 (Jinja2)**, **Tailwind CSS** e **JavaScript (ES6)**.
+- **Tempo Real:** Utilização de **Socket.IO** e **Redis** (Pub/Sub) para atualizações instantâneas de status sem necessidade de refresh.
+- **Infraestrutura:** **Nginx** atuando como Proxy Reverso e gerenciamento de processos via serviços Windows (NSSM).
+- **Dados:** Integração com **Oracle** (TASY) e **PostgreSQL** (Metadados), utilizando **SQLAlchemy** para ORM.
+
+## Funcionalidades Principais
+
+### 1. Dashboard em Tempo Real
+Visualização do status dos jobs de ETL através de gráficos de Gantt e tabelas de logs atualizadas via WebSocket. Permite identificar rapidamente processos travados ou com erro.
+
+### 2. Validação de Metas de Produção
+Módulo que compara, em background, os dados de produção do banco de dados Oracle com os relatórios da API do Power BI. O sistema destaca automaticamente divergências entre as unidades de negócio (Hospital e Clínicas).
+
+### 3. Automação e Alertas
+- **Bot do Telegram:** Integração bidirecional que envia alertas de falhas/sucesso e permite consultar o status dos jobs via comandos de chat.
+- **Gestão de Sessões Oracle:** Funcionalidade para identificar e encerrar sessões que estão causando *locks* no banco de dados diretamente pela interface.
+
+## Desafios e Resultados
+
+O maior desafio foi orquestrar a comunicação entre o processo web e as tarefas pesadas de validação em background sem bloquear a interface do usuário. A solução foi implementar uma arquitetura baseada em eventos usando **Redis** como *Message Broker*.
+
+**Impacto:**
+- Redução de **90% no tempo de detecção de falhas** em pipelines.
+- Centralização do monitoramento que antes estava disperso em logs manuais.
+- Maior confiabilidade nos dados apresentados à diretoria através da validação automática de metas.
