@@ -2,14 +2,14 @@ import { About, Blog, Gallery, Home, Newsletter, Person, Social, Work } from "@/
 import { Line, Logo, Row, Text } from "@once-ui-system/core";
 
 const person: Person = {
-  firstName: "Selene",
-  lastName: "Yu",
-  name: `Selene Yu`,
-  role: "Design Engineer",
+  firstName: "Henrique",
+  lastName: "Valentim",
+  name: `Henrique Valentim`,
+  role: "Analista de Negócios",
   avatar: "/images/avatar.jpg",
-  email: "example@gmail.com",
-  location: "Asia/Jakarta", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
-  languages: ["English", "Bahasa"], // optional: Leave the array empty if you don't want to display languages
+  email: "henriquevalentimbastos@hotmail.com",
+  location: "America/Maceio", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
+  languages: ["Português", "Inglês"], // optional: Leave the array empty if you don't want to display languages
 };
 
 const newsletter: Newsletter = {
@@ -24,18 +24,18 @@ const social: Social = [
   {
     name: "GitHub",
     icon: "github",
-    link: "https://github.com/once-ui-system",
+    link: "https://github.com/Henriquevv",
   },
   {
     name: "LinkedIn",
     icon: "linkedin",
-    link: "https://www.linkedin.com/company/once-ui/",
+    link: "https://www.linkedin.com/in/henriquevalentim1",
   },
-  {
-    name: "Threads",
-    icon: "threads",
-    link: "https://www.threads.com/@once_ui",
-  },
+//  {
+//    name: "Threads",
+//    icon: "threads",
+//    link: "https://www.threads.com/@once_ui",
+//  },
   {
     name: "Email",
     icon: "email",
@@ -46,12 +46,12 @@ const social: Social = [
 const home: Home = {
   path: "/",
   image: "/images/og/home.jpg",
-  label: "Home",
-  title: `${person.name}'s Portfolio`,
-  description: `Portfolio website showcasing my work as a ${person.role}`,
-  headline: <>Building bridges between design and code</>,
+  label: "Início",
+  title: `${person.name} | Portfólio`,
+  description: `Portfólio profissional de ${person.name}, Analista de Dados e Business Intelligence`,
+  headline: <>Transformando dados em análises e decisões estratégicas</>,
   featured: {
-    display: true,
+    display: false,
     title: (
       <Row gap="12" vertical="center">
         <strong className="ml-4">Once UI</strong>{" "}
@@ -79,9 +79,9 @@ const home: Home = {
 
 const about: About = {
   path: "/about",
-  label: "About",
-  title: `About – ${person.name}`,
-  description: `Meet ${person.name}, ${person.role} from ${person.location}`,
+  label: "Sobre",
+  title: `Sobre – ${person.name}`,
+  description: `Conheça ${person.name}, ${person.role} from ${person.location}`,
   tableOfContent: {
     display: true,
     subItems: false,
@@ -91,60 +91,47 @@ const about: About = {
   },
   calendar: {
     display: true,
-    link: "https://cal.com",
+    link: `mailto:${person.email}`,
   },
   intro: {
     display: true,
-    title: "Introduction",
+    title: "Resumo",
     description: (
       <>
-        Selene is a Jakarta-based design engineer with a passion for transforming complex challenges
-        into simple, elegant design solutions. Her work spans digital interfaces, interactive
-        experiences, and the convergence of design and technology.
+        Profissional de Dados atuando como Técnico de Negócios, com experiência em Business Intelligence, SQL avançado, 
+        ETL, tratamento e análise de dados, automação e visualização de dados.
+        <br /><br />
+        Trabalho diretamente com construção de dashboards, definição de KPIs, extração de dados e modelagem para tomada de decisão.
+        Tenho forte atuação em análises operacionais e assistenciais, garantindo integridade e padronização de métricas corporativas
       </>
     ),
   },
   work: {
     display: true, // set to false to hide this section
-    title: "Work Experience",
+    title: "Experiência Profissional",
     experiences: [
       {
-        company: "FLY",
-        timeframe: "2022 - Present",
-        role: "Senior Design Engineer",
+        company: "Rede Primavera de Saúde",
+        timeframe: "Out 2025 - Atual",
+        role: "Técnico de Negócios I",
         achievements: [
-          <>
-            Redesigned the UI/UX for the FLY platform, resulting in a 20% increase in user
-            engagement and 30% faster load times.
-          </>,
-          <>
-            Spearheaded the integration of AI tools into design workflows, enabling designers to
-            iterate 50% faster.
-          </>,
+          <>Construção de dashboards estratégicos em Power BI (DAX, Power Query) com foco em KPIs operacionais, assistenciais e financeiros.</>,
+          <>Execução de consultas SQL otimizadas em OracleSQL, PostgreSQL e SQL Server para análises ad hoc e investigações de performance.</>,
+          <>Estruturação de pipelines de dados e fluxos ETL garantindo integridade e rastreabilidade das métricas.</>,
+          <>Desenvolvimento de indicadores executivos para diretoria, consolidando datasets complexos.</>,
         ],
         images: [
-          // optional: leave the array empty if you don't want to display images
-          {
-            src: "/images/projects/project-01/cover-01.jpg",
-            alt: "Once UI Project",
-            width: 16,
-            height: 9,
-          },
         ],
       },
       {
-        company: "Creativ3",
-        timeframe: "2018 - 2022",
-        role: "Lead Designer",
+        company: "Rede Primavera de Saúde",
+        timeframe: "Fev 2025 - Out 2025",
+        role: "Estagiário em Dados e BI",
         achievements: [
-          <>
-            Developed a design system that unified the brand across multiple platforms, improving
-            design consistency by 40%.
-          </>,
-          <>
-            Led a cross-functional team to launch a new product line, contributing to a 15% increase
-            in overall company revenue.
-          </>,
+          <>Desenvolvimento de plataforma full-stack de monitoramento de pipelines (Python, FastAPI, JS), reduzindo em 90% o tempo de detecção de falhas.</>,
+          <>Criação de scripts Python para automação de relatórios e limpeza de dados, economizando mais de 2 horas diárias de trabalho manual.</>,
+          <>Construção de dashboards e modelos semânticos em Power BI.</>,
+          <>Documentação de fluxos e regras de negócio fortalecendo a governança de dados.</>,
         ],
         images: [],
       },
@@ -152,78 +139,45 @@ const about: About = {
   },
   studies: {
     display: true, // set to false to hide this section
-    title: "Studies",
+    title: "Formação Acadêmica",
     institutions: [
       {
-        name: "University of Jakarta",
-        description: <>Studied software engineering.</>,
-      },
-      {
-        name: "Build the Future",
-        description: <>Studied online marketing and personal branding.</>,
+        name: "Universidade Federal de Sergipe (UFS)",
+        description: <>Bacharelado em Sistemas de Informação (Previsão: Mar 2027)</>,
       },
     ],
   },
   technical: {
     display: true, // set to false to hide this section
-    title: "Technical skills",
+    title: "Habilidades Técnicas",
     skills: [
       {
-        title: "Figma",
-        description: (
-          <>Able to prototype in Figma with Once UI with unnatural speed.</>
-        ),
+        title: "Business Intelligence",
+        description: <>Power BI, DAX, M, Power Query, ETL, Modelagem de Dados, KPIs e Dashboards.</>,
         tags: [
-          {
-            name: "Figma",
-            icon: "figma",
-          },
+          { name: "Power BI", icon: "rocket" }, // Ícone genérico, ou importe um específico
+          { name: "DAX", icon: "code" },
         ],
-        // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/cover-02.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-          {
-            src: "/images/projects/project-01/cover-03.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-        ],
+        images: [],
       },
       {
-        title: "Next.js",
-        description: (
-          <>Building next gen apps with Next.js + Once UI + Supabase.</>
-        ),
+        title: "SQL & Bancos de Dados",
+        description: <>OracleSQL, PostgreSQL, MySQL, SQL Server, Query Optimization, Joins e Window Functions.</>,
         tags: [
-          {
-            name: "JavaScript",
-            icon: "javascript",
-          },
-          {
-            name: "Next.js",
-            icon: "nextjs",
-          },
-          {
-            name: "Supabase",
-            icon: "supabase",
-          },
+          { name: "SQL", icon: "database" },
+          { name: "PostgreSQL", icon: "database" },
         ],
-        // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/cover-04.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
+        images: [],
+      },
+      {
+        title: "Python & Desenvolvimento",
+        description: <>Pandas, NumPy, Matplotlib, FastAPI, REST APIs e automação de scripts.</>,
+        tags: [
+          { name: "Python", icon: "javascript" }, // Pode trocar o ícone se importar 'python'
+          { name: "FastAPI", icon: "globe" },
         ],
-      },  
+        images: [],
+      },
     ],
   },
 };

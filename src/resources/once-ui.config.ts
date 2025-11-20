@@ -17,15 +17,15 @@ import { home } from "./index";
 const baseURL: string = "https://demo.magic-portfolio.com";
 
 const routes: RoutesConfig = {
-  "/": true,
+  "/": false,
   "/about": true,
   "/work": true,
-  "/blog": true,
-  "/gallery": true,
+  "/blog": false,
+  "/gallery": false,
 };
 
 const display: DisplayConfig = {
-  location: true,
+  location: false,
   time: true,
   themeSwitcher: true,
 };
