@@ -1,0 +1,86 @@
+---
+title: "Bot de Gerenciamento de Pagamentos no Discord"
+publishedAt: "2025-10-20"
+summary: "Automação completa para controle de assinaturas compartilhadas no Discord, incluindo cálculo financeiro, notificações, histórico, integração com Google Drive e gestão de membros."
+images:
+  - "/images/projects/bot-pagamentos/dashboard.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Analista de Negócios"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+link: "https://github.com/Henriquevv/bot_discord"
+---
+
+## Visão Geral
+
+O **Bot de Gerenciamento de Pagamentos** foi desenvolvido para automatizar a organização de assinaturas compartilhadas dentro de servidores Discord.  
+O sistema elimina o controle manual feito em mensagens soltas e oferece um fluxo completo: cálculo automático do valor devido, registro de pagamentos, histórico mensal, envio de comprovantes, sincronização com Google Drive e alertas de pendência.
+
+O projeto surgiu a partir da necessidade de gerenciar uma assinatura dividida entre vários membros, garantindo transparência e reduzindo erros humanos no processo de cobrança.
+
+---
+
+## Arquitetura e Stack
+
+A solução foi construída para funcionar de forma contínua, estável e com persistência de dados em nuvem:
+
+- **Linguagem:** Python 3.13  
+- **Bot Discord:** Biblioteca oficial `discord.py`  
+- **Armazenamento de Dados:** Google Drive (sincronização automática de registros e comprovantes)  
+- **Persistência Local:** Arquivos de estado e logs do sistema  
+- **Automação:** Agendamentos internos para notificações diárias e atualização da cotação do dólar  
+- **Infraestrutura:** Processo contínuo executado em ambiente Linux usando serviços do sistema  
+
+O foco principal da arquitetura foi garantir confiabilidade, tolerância a falhas e rastreabilidade dos pagamentos.
+
+---
+
+## Funcionalidades Principais
+
+### 1. Cálculo Automático de Assinatura  
+O bot atualiza a cotação do dólar, calcula o valor total da assinatura e divide automaticamente entre os membros cadastrados.  
+Exibe em um único comando o valor individual, o total e a data de vencimento.
+
+### 2. Registro de Pagamentos e Comprovantes  
+Os usuários podem registrar que efetuaram o pagamento, incluindo envio de comprovante.  
+O bot sincroniza automaticamente os arquivos no Google Drive, mantendo histórico organizado.
+
+### 3. Histórico Mensal e Status Atual  
+O sistema mantém um histórico individual por mês para cada membro, permitindo consultas rápidas sobre pagamentos atrasados ou concluídos.
+
+### 4. Gestão de Membros  
+Administradores podem adicionar, remover, vincular contas e configurar pagamento automático para usuários específicos.
+
+### 5. Notificações Automáticas  
+O bot envia mensagens periódicas com lembretes de pagamento, alertas de atraso e confirmações de registro.  
+Dessa forma, todos os membros permanecem alinhados ao longo do mês.
+
+---
+
+## Desafios e Soluções
+
+O maior desafio foi garantir que o sistema fosse simples para os usuários, mas robusto internamente.  
+Alguns pontos críticos:
+
+### Sincronização de Arquivos no Google Drive  
+Registrar comprovantes e garantir consistência entre os dados locais e a pasta compartilhada exigiu uma lógica de sincronização tolerante a falhas.  
+A solução incluiu validação de integridade, timestamps e logs para auditoria.
+
+### Controle de Estados e Histórico  
+Para evitar inconsistências, foi necessário criar uma estrutura clara que separasse dados do mês atual, dados históricos e configurações individuais do usuário.
+
+### Automação de Notificações  
+As notificações precisavam ocorrer diariamente e sem depender de terceiros.  
+A solução foi implementar um loop assíncrono com tolerância a erros e registro de última execução.
+
+---
+
+## Impacto e Resultados
+
+O bot trouxe organização e transparência ao processo de divisão de custos mensais:
+
+- Redução significativa de erros manuais na confirmação de pagamentos  
+- Histórico centralizado e rastreável de todos os meses  
+- Processos que antes dependiam de combinações informais passaram a ser automatizados  
+- Maior confiança e previsibilidade no gerenciamento da assinatura  
