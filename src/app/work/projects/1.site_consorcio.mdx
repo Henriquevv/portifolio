@@ -1,0 +1,166 @@
+---
+title: "Site para analisar e otimizar cartas de consórcios"
+publishedAt: "2025-11-20"
+summary: "Ferramenta Full Stack para análise, otimização combinatória e mineração de dados no mercado de consórcios."
+images:
+  - "/images/projects/bot-pagamentos/pagina1.jpg"
+  - "/images/projects/bot-pagamentos/pagina2.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Analista de Negócios"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+
+
+## Analisador e Otimizador de Cartas de Crédito (Consórcios)
+
+O **Analisador e Otimizador de Cartas de Crédito** é uma plataforma completa para análise financeira, web scraping e otimização combinatória de consórcios.  
+Ele reúne técnicas de *Data Engineering*, *Pesquisa Operacional*, *Clean Architecture* e *Full Stack Development* para entregar um sistema capaz de analisar milhares de cartas em poucos milissegundos.
+
+A solução combina:
+
+-  Web Scraping robusto com bypass de WAF (Cloudflare)  
+-  Algoritmos avançados de otimização (*Branch & Bound*, Pareto Dominance, Fail-Fast)  
+-  API de alto desempenho com FastAPI  
+-  Cache inteligente com Redis  
+-  Persistência com PostgreSQL  
+-  Frontend em Vanilla JS com Dark Mode e SPA simulada  
+
+---
+
+##  Interface da Aplicação
+
+<Image
+  src="/projects/credit-analyzer.webp"
+  alt="Interface principal do analisador de consórcios"
+  width={1200}
+  height={700}
+/>
+
+---
+
+##  Objetivo do Sistema
+
+O projeto resolve um problema clássico do mercado de consórcios:  
+**“Como montar a melhor combinação de cartas para atingir um crédito alvo com o menor custo total?”**
+
+Enquanto a maioria das ferramentas faz apenas comparação simples, este sistema:
+
+- Consolida dados de múltiplas fontes  
+- Usa otimização matemática real  
+- Permite tolerância de crédito  
+- Faz análise multi-restrição (entrada, parcela, administradora etc.)  
+
+---
+
+##  Principais Funcionalidades
+
+###  Analisador Automático (Robô)
+- Busca simultânea em múltiplas administradoras e portais  
+- Filtros avançados:
+  - Segmento (Imóvel / Veículo)
+  - Administradora específica
+  - Teto de entrada
+  - Teto de parcela
+  - Crédito desejado + tolerância
+- Apresenta a **combinação ótima** de cartas:
+  - Lista detalhada das cartas
+  - Origem dos dados
+  - Links diretos para referência
+
+###  Calculadora Manual
+- Inserção manual de cartas  
+- Cálculo automáticode ágio  
+- Timeline visual de parcelas  
+
+---
+
+##  Estrutura de Engenharia e Algoritmos
+
+### 1. Branch & Bound (Ramificar e Podar)
+
+O motor de otimização implementa:
+
+- **Lookahead Pruning**  
+  Usa tabelas pré-calculadas para decidir se um ramo será inviável antes de testá-lo.  
+
+- **Fail-Fast Ordering**  
+  As cartas são ordenadas por custo total, reduzindo o tempo de busca exponencialmente.
+
+---
+
+### 2. Redução de Espaço de Busca (Pareto Dominance)
+
+Antes de iniciar o algoritmo, o sistema remove:
+
+- Cartas estritamente piores  
+- Duplicatas mascaradas  
+- Entradas inconsistentes  
+
+Isso reduz drasticamente a quantidade de combinações possíveis.
+
+---
+
+### 3. Processamento Paralelo
+
+Cada administradora é avaliada em paralelo usando `ThreadPoolExecutor`, permitindo:
+
+- Velocidade muito maior
+- Menor latência
+- Escalabilidade horizontal em cloud
+
+---
+
+##  Pipeline de Web Scraping
+
+O scraper foi projetado para sites protegidos por Cloudflare e estruturas HTML instáveis.
+
+### Tecnologias e estratégias:
+
+- `cloudscraper` para contornar WAFs  
+- `BeautifulSoup4` para parsing seguro  
+- Normalização (NLP básico):
+  - Correções fonéticas de administradoras  
+  - Converters monetários e numéricos robustos  
+- Persistência híbrida:
+  - PostgreSQL (histórico)
+  - Redis (cache com TTL)
+
+---
+
+##  Stack Tecnológica
+
+### Backend
+- **FastAPI** (ASGI, alto desempenho)
+- **Python 3.9+**
+- **Redis** como cache distribuído
+- **PostgreSQL** para persistência
+- **Pandas** para manipulação de dados
+- **Uvicorn** como servidor ASGI
+
+### Frontend
+- **HTML + CSS + Vanilla JS**
+- **SPA simulada**
+- **Dark Mode nativo**
+- **Requests via Fetch API**
+
+---
+
+##  Estrutura de Arquivos
+
+```text
+novo-site-railway/
+├── app.py                 # Núcleo da API + Algoritmos de otimização
+├── Procfile               # Configuração de deploy (Railway)
+├── requirements.txt       # Dependências Python
+├── static/
+│   ├── index.html         # Interface principal
+│   ├── main.js            # Controlador do Frontend
+│   └── style.css          # Estilos e Dark Mode
+└── .gitignore
+```
+
+
+
