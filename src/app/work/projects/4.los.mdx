@@ -1288,29 +1288,252 @@ except Exception as e:
     
 ![png](/images/projects/los/12.png)
 
-```text    
-Resumo Estatístico (P-values e HR)
-coef	exp(coef)	se(coef)	coef lower 95%	coef upper 95%	exp(coef) lower 95%	exp(coef) upper 95%	cmp to	z	p	-log2(p)
-covariate											
-CARATER_ATENDIMENTO_URGENCIA	-1.530013	0.216533	0.023494	-1.576061	-1.483965	0.206788	0.226737	0.0	-65.122442	0.000000e+00	inf
-CID_CAPITULO_Q	-0.753743	0.470602	0.190935	-1.127968	-0.379519	0.323690	0.684191	0.0	-3.947654	7.892064e-05	13.629238
-FL_NEOPLASIA	-0.614956	0.540665	0.058938	-0.730472	-0.499439	0.481681	0.606871	0.0	-10.433907	1.736004e-25	82.252432
-FL_DIABETES	-0.568587	0.566325	0.118567	-0.800974	-0.336199	0.448892	0.714481	0.0	-4.795479	1.622869e-06	19.233022
-CID_CAPITULO_G	-0.243897	0.783569	0.088339	-0.417038	-0.070755	0.658996	0.931690	0.0	-2.760911	5.764030e-03	7.438706
-FL_INSUF_CARDIACA	-0.243502	0.783878	0.082558	-0.405314	-0.081691	0.666768	0.921557	0.0	-2.949457	3.183325e-03	8.295250
-FL_DOENCA_RENAL	-0.231885	0.793037	0.080181	-0.389037	-0.074733	0.677709	0.927991	0.0	-2.892022	3.827716e-03	8.029301
-SEXO_M	-0.077686	0.925255	0.018754	-0.114444	-0.040929	0.891862	0.959898	0.0	-4.142330	3.437951e-05	14.828091
-IDADE	-0.007210	0.992816	0.000367	-0.007929	-0.006490	0.992102	0.993531	0.0	-19.637047	7.461308e-86	282.786388
-CID_CAPITULO_R	0.108355	1.114443	0.047711	0.014843	0.201867	1.014954	1.223686	0.0	2.271063	2.314319e-02	5.433268
-CID_CAPITULO_n	0.157964	1.171124	0.032728	0.093819	0.222109	1.098361	1.248708	0.0	4.826613	1.388745e-06	19.457787
-CID_CAPITULO_S	0.208270	1.231545	0.058707	0.093207	0.323333	1.097689	1.381725	0.0	3.547641	3.886979e-04	11.329063
-CID_CAPITULO_C	0.220495	1.246694	0.071473	0.080411	0.360579	1.083733	1.434160	0.0	3.085027	2.035336e-03	8.940517
-CID_CAPITULO_K	0.224078	1.251169	0.040613	0.144478	0.303679	1.155436	1.354833	0.0	5.517370	3.441098e-08	24.792556
-CID_CAPITULO_T	0.291023	1.337795	0.039628	0.213353	0.368692	1.237821	1.445843	0.0	7.343838	2.075551e-13	42.131571
-CID_CAPITULO_V	1.074740	2.929232	0.238298	0.607684	1.541796	1.836175	4.672975	0.0	4.510066	6.480754e-06	17.235407
-```    
-
-
+<div style={{ overflowX: 'auto', marginTop: '20px', marginBottom: '20px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '1200px' }}>
+    <thead>
+      <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+        <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold' }}>Covariate</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef)</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>se(coef)</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef low 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef upp 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef) low 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef) upp 95%</th>
+        <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>cmp to</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>z</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>p</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>-log2(p)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CARATER_ATENDIMENTO_URGENCIA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.530013</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.216533</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.023494</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.576061</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.483965</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.206788</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.226737</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-65.122442</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>inf</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_Q</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.753743</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.470602</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.190935</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.127968</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.379519</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.323690</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.684191</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-3.947654</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000079</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>13.629238</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_NEOPLASIA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.614956</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.540665</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.058938</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.730472</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.499439</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.481681</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.606871</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-10.433907</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>82.252432</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_DIABETES</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.568587</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.566325</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.118567</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.800974</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.336199</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.448892</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.714481</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-4.795479</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000002</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>19.233022</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_G</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.243897</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.783569</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.088339</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.417038</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.070755</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.658996</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.931690</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.760911</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.005764</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>7.438706</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_INSUF_CARDIACA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.243502</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.783878</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.082558</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.405314</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.081691</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.666768</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.921557</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.949457</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.003183</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.295250</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_DOENCA_RENAL</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.231885</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.793037</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.080181</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.389037</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.074733</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.677709</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.927991</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.892022</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.003828</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.029301</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>SEXO_M</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.077686</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.925255</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.018754</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.114444</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.040929</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.891862</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.959898</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-4.142330</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000034</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>14.828091</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>IDADE</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.007210</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.992816</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000367</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.007929</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.006490</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.992102</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.993531</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-19.637047</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>282.786388</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_R</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.108355</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.114443</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.047711</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.014843</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.201867</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.014954</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.223686</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>2.271063</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.023143</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>5.433268</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_n</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.157964</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.171124</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.032728</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.093819</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.222109</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.098361</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.248708</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.826613</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000001</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>19.457787</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_S</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.208270</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.231545</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.058707</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.093207</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.323333</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.097689</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.381725</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>3.547641</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000389</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>11.329063</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_C</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.220495</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.246694</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.071473</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.080411</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.360579</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.083733</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.434160</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>3.085027</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.002035</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.940517</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_K</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.224078</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.251169</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.040613</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.144478</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.303679</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.155436</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.354833</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>5.517370</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>24.792556</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_T</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.291023</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.337795</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.039628</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.213353</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.368692</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.237821</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.445843</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>7.343838</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>42.131571</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_V</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.074740</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>2.929232</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.238298</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.607684</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.541796</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.836175</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.672975</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.510066</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000006</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>17.235407</td>
+      </tr>
+    </tbody>
+  </table>
+</div> 
 
 
 
