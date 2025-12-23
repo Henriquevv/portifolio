@@ -517,18 +517,219 @@ A segmentação via Kaplan-Meier revelou que o hospital opera, na prática, com 
 
 Diagnóstico Operacional:
 
-#### 1. A Dicotomia do Atendimento (Urgência vs. Eletivo)
+#### A Dicotomia do Atendimento (Urgência vs. Eletivo)
 As curvas de sobrevivência expõem duas realidades distintas:
 * Fluxo Eletivo (Alta Eficiência): Curva com queda abrupta nas primeiras 48h.
     * *Insight:* Procedimentos programados giram o leito rápido e com previsibilidade. São a "locomotiva" da receita e eficiência.
 * Fluxo de Urgência (Gargalo): Curva suave com cauda longa.
     * *Insight:* Pacientes não programados têm mediana de internação superior (~4 dias) e alta variabilidade. São os principais ofensores da ocupação, exigindo gestão de caso individualizada.
 
-#### 2. O Peso das Doenças Crônicas (Análise por CID)
+#### O Peso das Doenças Crônicas (Análise por CID)
 Identifiquei que o diagnóstico de entrada dita o ritmo da alta:
 * Retentores de Leito: Capítulos 'I' (Circulatório) e 'J' (Respiratório) apresentaram as piores curvas de alta. Pacientes com descompensações cardíacas ou pulmonares são estruturalmente mais lentos para recuperar, exigindo protocolos de desospitalização específicos.
 * Giro Rápido: Em contraste, o capítulo 'K' (Digestivo) mostrou altas rápidas ($t < 2$ dias), validando o perfil cirúrgico/resolutivo.
 
-#### 3. Validação Científica
+#### Validação Científica
 O teste de *Log-Rank* confirmou ($p < 0.0001$) que essas diferenças não são aleatórias.
 * Conclusão de Negócio: A origem do paciente (Urgência) e a doença base são determinantes críticos. Um modelo preditivo que ignore essas variáveis será cego para a realidade do hospital. Validamos, portanto, que elas devem ser as principais *features* (variáveis preditoras) na etapa de Machine Learning.
+
+### 9. Solução de Triagem: Identificação de Pacientes Críticos
+
+Diante da dificuldade em prever o dia exato de alta para casos complexos (o "ponto cego" da regressão), adotei uma abordagem complementar: a Discretização do Risco.
+
+Se não podemos garantir *quando* o paciente sai, precisamos garantir que o hospital saiba *quem* são os pacientes que vão ficar muito tempo.
+
+Definição da Nova Estratégia:
+
+* A Pergunta de Negócio (Target Binário): O modelo deixa de tentar acertar um número e passa a calcular a probabilidade de um cenário crítico: *"Este paciente tem chance de ultrapassar 8 dias de internação?"*.
+    * *Por que 8 dias?* Este valor representa o quartil superior da nossa distribuição. Pacientes que superam essa marca são os maiores ofensores do giro de leitos.
+
+* O Motor (XGBoost Classifier): Utilizei o algoritmo XGBoost, padrão da indústria para classificação em dados desbalanceados (onde os casos de "sucesso" são a minoria), para separar o joio do trigo.
+
+Critério de Sucesso: A Política de "Erro Seguro"
+Em gestão hospitalar, nem todo erro tem o mesmo peso.
+* O Erro Aceitável (Falso Positivo): O modelo diz que o paciente é grave, a equipe audita, mas ele tem alta rápida. *Custo: Tempo administrativo.*
+* O Erro Inaceitável (Falso Negativo): O modelo diz que o paciente é simples, ninguém olha, e ele fica 20 dias ocupando o leito sem planejamento. *Custo: Bloqueio de leito e desassistência.*
+
+Decisão: Otimizei o modelo focando em Recall (Sensibilidade). O objetivo é criar uma "rede de segurança" que capture o máximo possível de pacientes graves, mesmo que isso gere alguns alertas falsos para checagem.
+
+
+```python
+from sklearn.metrics import (classification_report, roc_auc_score, confusion_matrix,
+                             ConfusionMatrixDisplay, precision_recall_curve, f1_score)
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+import xgboost as xgb
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+LIMITE_DIAS = 8
+y_train_class = (y_days_train > LIMITE_DIAS).astype(int)
+y_test_class = (y_days_test > LIMITE_DIAS).astype(int)
+
+ratio = (y_train_class == 0).sum() / (y_train_class == 1).sum()
+
+
+xgb_classifier = xgb.XGBClassifier(
+    n_estimators=200,
+    learning_rate=0.05,
+    max_depth=6,
+    scale_pos_weight=ratio,
+    n_jobs=-1,
+    random_state=42,
+    eval_metric='logloss'
+)
+
+clf_model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', xgb_classifier)
+])
+
+print(f"Validação Cruzada Estratificada (5 Folds)")
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+cv_scores = cross_val_score(clf_model, X_train, y_train_class, cv=cv, scoring='roc_auc')
+
+print(f"   Resultados da Validação Cruzada (AUC):")
+print(f"   Média: {cv_scores.mean():.4f}")
+print(f"   Desvio Padrão: {cv_scores.std():.4f}")
+print(f"   Scores por Fold: {cv_scores}")
+
+if cv_scores.std() > 0.05:
+    print("Alta variância entre os folds. O modelo pode estar instável.")
+else:
+    print("Modelo estável. Prosseguindo para treino final.")
+
+print(f"\n--- Treinando Classificador Final (Target: LOS > {LIMITE_DIAS} dias) ---\n")
+
+clf_model.fit(X_train, y_train_class)
+
+y_proba_test = clf_model.predict_proba(X_test)[:, 1]
+
+precision, recall, thresholds = precision_recall_curve(y_test_class, y_proba_test)
+
+f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
+best_idx = np.argmax(f1_scores)
+best_threshold_math = thresholds[best_idx]
+
+print(f"Análise de Corte (Threshold):")
+print(f"Melhor Threshold Matemático (Max F1): {best_threshold_math:.3f}")
+
+THRESHOLD_ESCOLHIDO = 0.35
+
+print(f"Threshold Escolhido para o Negócio:  {THRESHOLD_ESCOLHIDO:.3f}")
+
+y_pred_padrao = (y_proba_test >= 0.50).astype(int)
+y_pred_otimizado = (y_proba_test >= THRESHOLD_ESCOLHIDO).astype(int)
+
+
+print("COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)")
+print(f"\nAUC-ROC Global (Teste): {roc_auc_score(y_test_class, y_proba_test):.4f}")
+
+print(f"\n--- CENÁRIO PADRÃO (Corte 0.50) ---")
+print("Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.")
+print(classification_report(y_test_class, y_pred_padrao))
+
+print(f"\n--- CENÁRIO OTIMIZADO (Corte {THRESHOLD_ESCOLHIDO}) ---")
+print("Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.")
+print(classification_report(y_test_class, y_pred_otimizado))
+
+fig, ax = plt.subplots(1, 2, figsize=(16, 6))
+
+cm_padrao = confusion_matrix(y_test_class, y_pred_padrao)
+disp_padrao = ConfusionMatrixDisplay(confusion_matrix=cm_padrao, display_labels=['Curta', 'Longa'])
+disp_padrao.plot(cmap='Blues', ax=ax[0], values_format='d')
+ax[0].set_title(f'Matriz Padrão (0.50)\nAlto Risco de Falso Negativo')
+
+cm_otim = confusion_matrix(y_test_class, y_pred_otimizado)
+disp_otim = ConfusionMatrixDisplay(confusion_matrix=cm_otim, display_labels=['Curta', 'Longa'])
+disp_otim.plot(cmap='Greens', ax=ax[1], values_format='d')
+ax[1].set_title(f'Matriz Otimizada ({THRESHOLD_ESCOLHIDO})\nMais Segurança (Menos FN)')
+
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, marker='.', label='XGBoost')
+plt.scatter(recall[best_idx], precision[best_idx], marker='o', color='red', label='Max F1', zorder=10)
+plt.title('Curva Precision-Recall')
+plt.xlabel('Recall (Sensibilidade)')
+plt.ylabel('Precision (Precisão)')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+    Validação Cruzada Estratificada (5 Folds)
+       Resultados da Validação Cruzada (AUC):
+       Média: 0.8615
+       Desvio Padrão: 0.0095
+       Scores por Fold: [0.85205907 0.87655941 0.85869776 0.86797804 0.85217463]
+    Modelo estável. Prosseguindo para treino final.
+    
+    --- Treinando Classificador Final (Target: LOS > 8 dias) ---
+    
+    Análise de Corte (Threshold):
+    Melhor Threshold Matemático (Max F1): 0.641
+    Threshold Escolhido para o Negócio:  0.350
+    COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)
+    
+    AUC-ROC Global (Teste): 0.8700
+    
+    --- CENÁRIO PADRÃO (Corte 0.50) ---
+    Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.
+                  precision    recall  f1-score   support
+    
+               0       0.96      0.81      0.87      1861
+               1       0.38      0.76      0.51       292
+    
+        accuracy                           0.80      2153
+       macro avg       0.67      0.78      0.69      2153
+    weighted avg       0.88      0.80      0.82      2153
+    
+    
+    --- CENÁRIO OTIMIZADO (Corte 0.35) ---
+    Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.
+                  precision    recall  f1-score   support
+    
+               0       0.97      0.72      0.82      1861
+               1       0.32      0.84      0.46       292
+    
+        accuracy                           0.73      2153
+       macro avg       0.64      0.78      0.64      2153
+    weighted avg       0.88      0.73      0.77      2153
+    
+    
+
+
+    
+![png](/images/projects/los/6.png)
+    
+![png](/images/projects/los/7.png)
+    
+
+
+### Validação e Calibragem Operacional
+
+Um modelo preditivo em saúde não pode apenas ser matematicamente preciso; ele precisa ser seguro. Nesta etapa, submeti o classificador a testes de estresse e ajustei sua sensibilidade para garantir que nenhum paciente grave passe despercebido.
+
+Resultados da Validação:
+
+#### Confiabilidade do Modelo (Estabilidade)
+Antes de colocar em prática, verifiquei se o modelo era consistente.
+* Resultado: O modelo manteve alta performance (AUC ~0.86) em 5 cenários de teste diferentes, com variação mínima.
+* O que isso significa: O algoritmo é robusto. Ele não "teve sorte" com um grupo específico de pacientes; ele aprendeu padrões reais que se repetem, oferecendo segurança para uso diário.
+
+#### A Regra do "Erro Seguro" (Ajuste de Corte)
+Por padrão, algoritmos esperam 50% de certeza para emitir um alerta. Para o ambiente hospitalar, considerei isso arriscado.
+* Decisão de Negócio: Reduzi o gatilho de alerta para 35% de probabilidade.
+* Impacto: Com esse ajuste, aumentamos a sensibilidade do modelo (Recall) de 76% para 84%. Na prática, isso cria uma "malha fina" que captura a vasta maioria dos casos complexos, evitando que pacientes graves fiquem sem gestão.
+
+#### O Custo da Segurança (Trade-off)
+Ao aumentar a sensibilidade, aceitamos naturalmente mais alertas.
+* A Realidade: De cada 3 alertas de "Alto Risco", 1 será de fato uma longa permanência crítica.
+* Justificativa: O custo operacional de a equipe checar 2 pacientes a mais (falsos positivos) é irrisório comparado ao prejuízo financeiro e assistencial de deixar um paciente crítico ocupar um leito por semanas sem planejamento.
+
+Conclusão:
+O modelo está calibrado para atuar como um Radar de Alta Sensibilidade. Ele prioriza a segurança, garantindo que a equipe de gestão de leitos receba alertas precoces sobre os pacientes que mais demandarão recursos.
