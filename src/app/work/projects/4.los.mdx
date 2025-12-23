@@ -237,20 +237,20 @@ Dada a alta variabilidade confirmada, concluí que um modelo de regressão pura 
 
 ### 6. Refinamento dos Dados e Criação de Inteligência
 
-Para que o modelo enxergue padrões complexos, não basta entregar os dados brutos do sistema. Realizei um processo de **Engenharia de Atributos** para traduzir registros administrativos em fatores de risco tangíveis para o algoritmo.
+Para que o modelo enxergue padrões complexos, não basta entregar os dados brutos do sistema. Realizei um processo de Engenharia de Atributos para traduzir registros administrativos em fatores de risco tangíveis para o algoritmo.
 
-**Estratégias de Enriquecimento:**
+Estratégias de Enriquecimento:
 
-1.  **Contexto Sazonal (`IS_INVERNO`):**
+1.  Contexto Sazonal (`IS_INVERNO`):
     Criei um indicador específico para o período de junho a setembro. Isso ensina o modelo que, nestes meses, a complexidade dos casos aumenta naturalmente (devido a doenças respiratórias), ajustando a previsão de permanência para cima independente do diagnóstico base.
 
-2.  **Saneamento de Sinais Vitais:**
+2.  Saneamento de Sinais Vitais:
     Implementei filtros de segurança para dados fisiológicos. Valores impossíveis (ex: Pressão Arterial ou Saturação zeradas) foram tratados como erro de aferição/digitação e corrigidos estatisticamente. Isso impede que o modelo confunda um erro de cadastro na triagem com um paciente em óbito ou alta gravidade.
 
-3.  **Tradução de Dados Clínicos:**
+3.  Tradução de Dados Clínicos:
     Algoritmos matemáticos não interpretam texto. Converti variáveis qualitativas (como Especialidade e Convênio) em representações numéricas binárias (*One-Hot Encoding*), permitindo que o modelo pondere o peso exato de cada especialidade no tempo de ocupação.
 
-4.  **Protocolo de Validação (Split Estratificado):**
+4.  Protocolo de Validação (Split Estratificado):
     Separei 20% dos dados para teste. A divisão foi feita garantindo que a proporção de pacientes de alta vs. internados fosse idêntica nos dois grupos, simulando com fidelidade o mix de pacientes que o hospital recebe no dia a dia.
 
 
@@ -334,16 +334,16 @@ print(f"Treino: {X_train.shape[0]} | Teste: {X_test.shape[0]}")
 
 Nesta etapa, o objetivo foi responder à pergunta operacional mais crítica: *"Quantos dias, exatamente, este paciente deve ocupar o leito?"*. Tratei o problema como uma tarefa de regressão para estimar o LOS contínuo.
 
-**Decisões Estratégicas de Modelagem:**
+Decisões Estratégicas de Modelagem:
 
-* **O Motor (Random Forest):** Optei por um modelo de *ensemble* (floresta aleatória) pela sua capacidade de entender a complexidade humana.
+* O Motor (Random Forest): Optei por um modelo de *ensemble* (floresta aleatória) pela sua capacidade de entender a complexidade humana.
     * *Por que:* A saúde não é linear. A combinação de fatores (ex: *Idade Avançada* + *Insuficiência Cardíaca*) gera um risco exponencial, não apenas uma soma simples. Modelos lineares falhariam em capturar essa nuance, mas árvores de decisão são excelentes nisso.
 
-* **A Métrica de Sucesso (MAE - Erro Médio):** Para avaliar o modelo, priorizei o **Erro Absoluto Médio**.
+* A Métrica de Sucesso (MAE - Erro Médio): Para avaliar o modelo, priorizei o Erro Absoluto Médio.
     * *Justificativa:* Como vimos na análise exploratória, temos casos extremos (internações de meses). Métricas tradicionais (como RMSE) dariam peso excessivo a esses casos raros, distorcendo a precisão para o paciente "típico" de 3 dias. O MAE mantém o foco na performance do dia a dia.
 
-**Gestão de Expectativa:**
-A recuperação biológica possui variáveis imprevisíveis (estocásticas). O objetivo deste modelo não é "adivinhar o futuro" com precisão de minutos, mas minimizar o erro médio para fornecer um **norte de planejamento** confiável para a equipe de gestão de leitos.
+Gestão de Expectativa:
+A recuperação biológica possui variáveis imprevisíveis (estocásticas). O objetivo deste modelo não é "adivinhar o futuro" com precisão de minutos, mas minimizar o erro médio para fornecer um norte de planejamento confiável para a equipe de gestão de leitos.
 
 
 ```python
@@ -430,23 +430,23 @@ plt.show()
 
 Nesta etapa, avaliei a capacidade do modelo de regressão (*Random Forest*) em responder à pergunta: *"Em que dia exato este paciente terá alta?"*. Os resultados mostram uma clara dicotomia entre pacientes de rotina e casos complexos.
 
-**Diagnóstico de Performance:**
+Diagnóstico de Performance:
 
 #### O "Ponto Cego" da Admissão ($R^2 \approx 18\%$)
 O modelo consegue explicar 18.4% da variabilidade do tempo de internação.
-* **Interpretação de Negócio:** Isso não é um defeito do modelo, mas uma característica do setor. Dados de admissão (quem é o paciente) definem o início da jornada, mas o que realmente determina a alta são os eventos intra-hospitalares (resposta a medicamentos, disponibilidade de exames, intercorrências) que ainda não aconteceram.
+* Interpretação de Negócio: Isso não é um defeito do modelo, mas uma característica do setor. Dados de admissão (quem é o paciente) definem o início da jornada, mas o que realmente determina a alta são os eventos intra-hospitalares (resposta a medicamentos, disponibilidade de exames, intercorrências) que ainda não aconteceram.
 
 #### Eficiência no Paciente Típico (MAE vs. RMSE)
 As métricas de erro contam duas histórias diferentes:
-* **Para o dia a dia (MAE = 3.67 dias):** O erro médio absoluto é baixo. Para a vasta maioria dos pacientes (casos de baixa/média complexidade), o modelo é uma ferramenta confiável para planejamento de fluxo.
-* **Para casos extremos (RMSE = 9.45 dias):** O erro quadrático salta devido aos *outliers*. O modelo perde precisão ao tentar quantificar internações muito longas (ex: prever se ficará 40 ou 60 dias).
+* Para o dia a dia (MAE = 3.67 dias): O erro médio absoluto é baixo. Para a vasta maioria dos pacientes (casos de baixa/média complexidade), o modelo é uma ferramenta confiável para planejamento de fluxo.
+* Para casos extremos (RMSE = 9.45 dias): O erro quadrático salta devido aos *outliers*. O modelo perde precisão ao tentar quantificar internações muito longas (ex: prever se ficará 40 ou 60 dias).
 
 #### Análise Visual: Conservadorismo em Casos Graves
-O gráfico de dispersão revela que o algoritmo é **conservador**:
+O gráfico de dispersão revela que o algoritmo é conservador:
 * Em casos de longa permanência, ele tende a subestimar o tempo real (prevê menos dias do que realmente ocorre).
-* **Diagnóstico:** O modelo consegue detectar *que* o paciente vai demorar, mas tem dificuldade em precisar *o quanto*.
+* Diagnóstico: O modelo consegue detectar *que* o paciente vai demorar, mas tem dificuldade em precisar *o quanto*.
 
-**Pivô Estratégico:**
+Pivô Estratégico:
 Insistir em prever o dia exato de alta para pacientes graves traz um risco de frustração para a equipe assistencial. A decisão mais inteligente é mudar a pergunta. Em vez de *"Que dia ele sai?"*, focaremos em *"Este paciente é de Alto Risco (> 8 dias)?"*.
 
-Isso nos leva à próxima etapa: **Classificação de Risco**, onde transformamos a incerteza da regressão em um sistema de alerta binário para o NIR (Núcleo Interno de Regulação).
+Isso nos leva à próxima etapa: Classificação de Risco, onde transformamos a incerteza da regressão em um sistema de alerta binário para o NIR (Núcleo Interno de Regulação).
