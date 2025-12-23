@@ -1306,3 +1306,73 @@ Identificamos perfis que aceleram o fluxo e podem ser otimizados:
 Conclusão e Estratégia Sugerida:
 A análise comprova que o Tempo de Permanência (LOS) é fortemente penalizado pela Origem (Urgência) e pela Carga de Doença.
 Do ponto de vista de gestão, os dados sugerem que misturar esses perfis no mesmo fluxo gera ineficiência.
+
+
+### 15. Persistência de Artefatos e Entrega do Produto de Dados
+
+A etapa conclusiva do pipeline de dados consiste na materialização dos resultados para consumo operacional. O processo divide-se em duas vertentes de entrega: uma analítica (para humanos) e uma técnica (para sistemas).
+
+Artefatos Gerados:
+
+Relatório Analítico (`Relatorio_Previsoes.csv`):
+    * Consolidação dos dados históricos enriquecidos com as inferências do modelo.
+    * Colunas Adicionadas:
+        * `PRED_DIAS_ESTADIA`: Estimativa de regressão (tempo de permanência).
+        * `PROB_LONGA_PERMANENCIA`: Score de risco (0 a 100%) gerado pelo classificador.
+        * `ALERTA_RISCO`: Flag binária baseada no *threshold* calibrado (0.35), indicando necessidade de intervenção imediata.
+    * Finalidade: Alimentação direta de dashboards gerenciais (Power BI / Tableau) para uso da equipe do NIR (Núcleo Interno de Regulação).
+
+Serialização de Modelos (`.pkl` / `.joblib`):
+    * Exportação dos objetos treinados (o Regressor, o Classificador e os Pré-processadores como `LabelEncoders` e `Scalers`).
+    * Finalidade: Garantir a portabilidade e reprodutibilidade do modelo. Estes arquivos binários permitem que o algoritmo seja embarcado em uma API (ex: via FastAPI ou Flask) para realizar predições em tempo real integradas ao Prontuário Eletrônico, sem a necessidade de re-treinamento a cada requisição.
+
+
+
+## 16. Previsão de Tempo de Internação (LOS): Estratégia Baseada em Dados
+
+## O Desafio de Negócio
+A previsibilidade na ocupação de leitos é um dos maiores gargalos da gestão hospitalar. A incerteza sobre quando um paciente terá alta impacta desde o fluxo do Pronto Socorro até o planejamento de cirurgias eletivas.
+
+Este projeto teve como objetivo responder à pergunta: É possível antecipar quais pacientes terão uma internação longa (alto custo) utilizando apenas os dados disponíveis na admissão?
+
+## Estratégia e Metodologia
+Para garantir que os dados refletissem a realidade operacional, realizei um tratamento rigoroso na base, corrigindo inconsistências temporais (erros de registro de datas) que poderiam enviesar a análise.
+
+Adotei uma abordagem híbrida para resolver o problema:
+Diagnóstico: Uso de Análise de Sobrevivência para entender o comportamento da alta ao longo do tempo.
+Modelagem: Teste de dois cenários — tentar prever o dia exato da alta (Regressão) versus identificar o risco de longa permanência (Classificação).
+
+## Principais Descobertas (Insights)
+
+A análise estatística revelou os gargalos operacionais do hospital:
+* O Fator Urgência: A origem do paciente é determinante. Pacientes admitidos pela emergência têm uma probabilidade de alta diária 80% menor do que pacientes eletivos. Isso valida estatisticamente a Urgência como o ponto crítico de retenção de leitos.
+* Ofensores Clínicos: Identificamos que Neoplasias e Diabetes reduzem a velocidade de alta em cerca de 45%, independentemente da idade do paciente.
+* Oportunidade de Giro: Diagnósticos de Causas Externas (ex: pequenos traumas) giram o leito quase 3 vezes mais rápido que a média.
+
+## Resultados dos Modelos
+
+### Decisão Estratégica: Classificação vs. Regressão
+Ao comparar as abordagens, a Classificação de Risco mostrou-se superior para a tomada de decisão gerencial.
+
+* O Limite da Regressão (Random Forest): O modelo conseguiu prever o tempo de internação com um erro médio de 3.6 dias. Embora útil para casos simples, ele perde precisão nos casos extremos (justamente os que mais impactam o custo).
+* A Força da Classificação (XGBoost): Optamos por focar em identificar *quem* vai ficar mais de 8 dias. O modelo obteve uma excelente capacidade de discriminação (AUC-ROC de 0.87).
+
+### Impacto Operacional
+Ajustei o modelo para priorizar a segurança assistencial (Sensibilidade):
+* O algoritmo conseguiu detectar 84% dos pacientes de longa permanência logo na entrada.
+* Isso permite que a equipe de gestão de leitos atue preventivamente na maioria dos casos críticos, sem esperar o paciente "estourar" o tempo previsto.
+
+### Transparência (White Box)
+Para garantir a confiança da equipe médica, utilizei SHAP Values para explicar as decisões do modelo. A ferramenta confirmou que o algoritmo segue a lógica clínica: ele aprendeu que Idade Avançada, Instabilidade nos Sinais Vitais e Admissão via Urgência são os maiores vetores de risco.
+
+## Conclusão
+O estudo comprovou que dados básicos de admissão possuem alto poder preditivo. A implementação deste modelo de Triagem de Risco permite segregar fluxos: criar vias rápidas (*Fast Tracks*) para casos simples e alocar recursos de desospitalização precocemente para os casos complexos identificados pelo algoritmo.
+
+### 17. Limitações e Oportunidades de Evolução
+
+Embora o modelo seja funcional para a triagem inicial, é importante destacar pontos de atenção para sua implantação e evolução:
+
+* Contexto Específico: O algoritmo aprendeu os padrões operacionais e clínicos de um único hospital. Para escalar a solução para outras unidades, seria necessário um re-treino para capturar as especificidades locais (processos e perfil demográfico).
+* Profundidade dos Dados: O modelo utiliza apenas dados disponíveis na admissão. A inclusão de variáveis intra-hospitalares (exames laboratoriais, evolução de enfermagem ou scores) certamente aumentaria a precisão.
+* Predição Estática ("Foto da Porta"): O risco é calculado apenas na entrada. Como o quadro clínico é dinâmico, uma evolução futura do projeto seria recalcular o score diariamente, ajustando a previsão conforme o paciente melhora ou piora.
+* Validação em Produção: Utilizamos validação cruzada para garantir a robustez técnica. O próximo passo ideal seria um teste piloto (validação *Out-of-Time*) para monitorar a estabilidade do modelo frente a dados novos e sazonais antes do *rollout* total.
