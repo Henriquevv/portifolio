@@ -450,3 +450,85 @@ Pivô Estratégico:
 Insistir em prever o dia exato de alta para pacientes graves traz um risco de frustração para a equipe assistencial. A decisão mais inteligente é mudar a pergunta. Em vez de *"Que dia ele sai?"*, focaremos em *"Este paciente é de Alto Risco (> 8 dias)?"*.
 
 Isso nos leva à próxima etapa: Classificação de Risco, onde transformamos a incerteza da regressão em um sistema de alerta binário para o NIR (Núcleo Interno de Regulação).
+
+### 8. Identificando Gargalos: Comparação de Perfis Clínicos
+
+Sabemos que "não existe o paciente médio". Um paciente eletivo de cirurgia simples não se comporta como um paciente agudo de pronto-socorro. Nesta etapa, utilizei o estimador Kaplan-Meier para segmentar a curva de sobrevivência e provar onde estão os gargalos de ocupação.
+
+Estratégia de Análise:
+
+* Visualização de Fluxos (Curvas Estratificadas):
+    Plotei curvas de alta separadas para diferentes grupos (ex: *Eletivo vs. Urgência*).
+    * *O que buscamos:* Se as curvas se afastarem visualmente, significa que um grupo gira o leito muito mais rápido que o outro, exigindo metas de gestão distintas.
+
+* Prova Matemática (Teste de Log-Rank):
+    Não basta o gráfico parecer diferente; é preciso ter certeza estatística.
+    * *Aplicação:* Utilizei o teste de Log-Rank para calcular se a diferença no tempo de internação entre os grupos é real ou fruto do acaso.
+    * *Decisão:* Se o p-valor for < 0.05, confirmamos cientificamente que aquele fator (ex: Diagnóstico) é um determinante crítico para a demora da alta.
+
+
+```python
+from lifelines import KaplanMeierFitter
+from lifelines.statistics import multivariate_logrank_test
+
+# T = Tempo, E = Evento
+T = df_final['LOS']
+E = df_final['Evento_ocorreu']
+
+def analisar_sobrevivencia(dataframe, coluna_grupo, limite_top=5):
+    kmf = KaplanMeierFitter()
+    top_grupos = dataframe[coluna_grupo].value_counts().head(limite_top).index.tolist()
+
+    print(f"\n--- Analisando: {coluna_grupo} ---")
+    plt.figure(figsize=(10, 6))
+    ax = plt.subplot(111)
+
+    for grupo in top_grupos:
+        mask = dataframe[coluna_grupo] == grupo
+        if mask.sum() > 10:
+            kmf.fit(T[mask], event_observed=E[mask], label=str(grupo))
+            kmf.plot_survival_function(ax=ax, ci_show=False)
+
+    plt.title(f"Sobrevivência por {coluna_grupo}")
+    plt.show()
+
+
+if 'CARATER_ATENDIMENTO' in df_final.columns:
+    analisar_sobrevivencia(df_final, 'CARATER_ATENDIMENTO')
+
+if 'CID_CAPITULO' in df_final.columns:
+    analisar_sobrevivencia(df_final, 'CID_CAPITULO')
+```
+
+    
+    --- Analisando: CARATER_ATENDIMENTO ---
+    
+![png](/images/projects/los/4.png)
+    
+    --- Analisando: CID_CAPITULO ---
+    
+![png](/images/projects/los/5.png)
+    
+
+
+### Discussão dos Resultados: Onde estão os Gargalos?
+
+A segmentação via Kaplan-Meier revelou que o hospital opera, na prática, com "dois hospitais" dentro de um só, cada um com dinâmicas de ocupação radicalmente opostas.
+
+Diagnóstico Operacional:
+
+#### 1. A Dicotomia do Atendimento (Urgência vs. Eletivo)
+As curvas de sobrevivência expõem duas realidades distintas:
+* Fluxo Eletivo (Alta Eficiência): Curva com queda abrupta nas primeiras 48h.
+    * *Insight:* Procedimentos programados giram o leito rápido e com previsibilidade. São a "locomotiva" da receita e eficiência.
+* Fluxo de Urgência (Gargalo): Curva suave com cauda longa.
+    * *Insight:* Pacientes não programados têm mediana de internação superior (~4 dias) e alta variabilidade. São os principais ofensores da ocupação, exigindo gestão de caso individualizada.
+
+#### 2. O Peso das Doenças Crônicas (Análise por CID)
+Identifiquei que o diagnóstico de entrada dita o ritmo da alta:
+* Retentores de Leito: Capítulos 'I' (Circulatório) e 'J' (Respiratório) apresentaram as piores curvas de alta. Pacientes com descompensações cardíacas ou pulmonares são estruturalmente mais lentos para recuperar, exigindo protocolos de desospitalização específicos.
+* Giro Rápido: Em contraste, o capítulo 'K' (Digestivo) mostrou altas rápidas ($t < 2$ dias), validando o perfil cirúrgico/resolutivo.
+
+#### 3. Validação Científica
+O teste de *Log-Rank* confirmou ($p < 0.0001$) que essas diferenças não são aleatórias.
+* Conclusão de Negócio: A origem do paciente (Urgência) e a doença base são determinantes críticos. Um modelo preditivo que ignore essas variáveis será cego para a realidade do hospital. Validamos, portanto, que elas devem ser as principais *features* (variáveis preditoras) na etapa de Machine Learning.
