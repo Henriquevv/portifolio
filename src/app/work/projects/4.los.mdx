@@ -163,3 +163,74 @@ if arquivo_carregado:
 else:
     print("Erro de carregamento")
 ```
+
+### 5. Comportamento da Permanência (EDA)
+
+Antes de prever o futuro, é crucial entender o presente. Nesta etapa, analisei a distribuição real do Tempo de Permanência (LOS) para estabelecer nossa linha de base (baseline) de comparação.
+
+Insights Estruturais:
+
+* A "Armadilha da Média" (Distribuição Assimétrica): Confirmei que os dados hospitalares apresentam uma "cauda longa" (*right-skewed*). Poucos pacientes de longuíssima permanência puxam a média para cima, fazendo com que ela não represente o paciente típico.
+    * *Ação Técnica:* Apliquei transformações logarítmicas para normalizar os dados. Isso impede que o modelo fique enviesado pelos *outliers* e erre a previsão da grande maioria dos atendimentos.
+
+* A Régua de Comparação (Kaplan-Meier Global): Construí a Curva de Sobrevivência Global para responder à pergunta: *"Qual é a probabilidade estatística de um paciente qualquer continuar internado após o dia X?"*.
+    * *Objetivo:* Esta curva atua como nosso "zero". Qualquer grupo de pacientes (ex: Idosos, Cirúrgicos) que se desviar muito desta curva será identificado como um ponto de atenção ou de eficiência.
+
+
+```python
+from lifelines import KaplanMeierFitter
+
+
+df_eda = df_mestre.copy()
+
+# ANÁLISE DA VARIÁVEL ALVO (LOS)
+fig, ax = plt.subplots(1, 2, figsize=(16, 5))
+sns.histplot(df_eda['LOS'], bins=50, kde=True, ax=ax[0], color='salmon')
+ax[0].set_title('Distribuição do LOS (Dias) - Assimétrica')
+
+sns.histplot(df_eda['LOS_LOG'], bins=50, kde=True, ax=ax[1], color='skyblue')
+ax[1].set_title('Distribuição do Log(LOS) - Mais Normal')
+plt.show()
+
+print(f"Média do LOS: {df_eda['LOS'].mean():.2f} dias | Mediana: {df_eda['LOS'].median():.2f} dias")
+
+# ANÁLISE DE SOBREVIVÊNCIA GLOBAL
+plt.figure(figsize=(10, 6))
+kmf = KaplanMeierFitter()
+kmf.fit(durations=df_eda['LOS'], event_observed=df_eda['Evento_ocorreu'])
+kmf.plot_survival_function(linewidth=2)
+plt.title('Curva de Sobrevivência Global (Probabilidade de Permanência)')
+plt.ylabel('Probabilidade de estar internado')
+plt.xlabel('Dias')
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+![png](/images/projects/los/1.png)
+Média do LOS: 5.35 dias | Mediana: 2.00 dias
+![png](/images/projects/los/2.png)
+
+### Diagnóstico do Comportamento da Permanência (EDA)
+
+A análise exploratória serviu para validar a qualidade dos dados e, principalmente, para definir a estratégia de modelagem. Os dados revelaram que tratar a internação como uma distribuição normal simples levaria a erros de previsão.
+
+Principais Descobertas:
+
+#### 1. A "Armadilha da Média"
+Identifiquei uma discrepância crítica entre as métricas centrais:
+* Média: 5.35 dias.
+* Mediana: 2.00 dias.
+
+Insight de Negócio: O paciente "típico" fica apenas 2 dias. A média é inflada (mais que o dobro da mediana) por poucos casos de longuíssima permanência. Utilizar a média simples para planejamento de capacidade geraria distorções graves, alocando recursos errados para a maioria dos pacientes.
+
+#### 2. Identificação da Cauda Longa (Assimetria)
+O histograma confirmou que a operação lida com dois perfis de ocupação muito distintos:
+* Giro Rápido (0-5 dias): A grande maioria dos casos.
+* Cauda Longa (Extremos): Casos de alta complexidade que, embora menos frequentes, consomem desproporcionalmente os dias-leito disponíveis.
+
+#### 3. Correção Técnica (Transformação Logarítmica)
+Para lidar com essa assimetria, apliquei a função `np.log1p` na variável alvo.
+* Objetivo: Comprimir a escala dos valores extremos (dias muito altos) para aproximar a distribuição de uma curva normal. Isso impede que o algoritmo de regressão fique "confuso" tentando ajustar o erro apenas pelos casos extremos, melhorando a precisão geral.
+
+Decisão Estratégica:
+Dada a alta variabilidade confirmada, concluí que um modelo de regressão pura (prever o dia exato) terá limitações naturais. Portanto, a estratégia mais robusta para o hospital é atuar em duas frentes: estimar a duração, mas principalmente Classificar o Risco, segregando pacientes de "Giro Rápido" vs. "Longa Permanência" (> 8 dias).
