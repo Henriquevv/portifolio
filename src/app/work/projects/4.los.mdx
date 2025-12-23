@@ -320,13 +320,15 @@ print(f"Treino: {X_train.shape[0]} | Teste: {X_test.shape[0]}")
 %store features_num features_cat features_bin
 ```
 
-    Features selecionadas: 17
-    
-    Split Realizado
-    Treino: 8608 | Teste: 2153
-    Stored 'features_num' (list)
-    Stored 'features_cat' (list)
-    Stored 'features_bin' (list)
+```text
+Features selecionadas: 17
+
+Split Realizado
+Treino: 8608 | Teste: 2153
+Stored 'features_num' (list)
+Stored 'features_cat' (list)
+Stored 'features_bin' (list)
+```
 
 
 ### 7. Estimativa de Dias-Leito: Modelagem de Regressão
@@ -416,12 +418,14 @@ plt.legend()
 plt.show()
 ```
 
+```text
     Treinando Random Forest...
     
     RESULTADOS FINAIS (Random Forest):
     MAE (Erro Médio): 3.67 dias
     RMSE: 9.45
     R²: 0.1843
+```
 
 ![png](/images/projects/los/3.png)
 
@@ -660,44 +664,46 @@ plt.grid(True, alpha=0.3)
 plt.show()
 ```
 
-    Validação Cruzada Estratificada (5 Folds)
-       Resultados da Validação Cruzada (AUC):
-       Média: 0.8615
-       Desvio Padrão: 0.0095
-       Scores por Fold: [0.85205907 0.87655941 0.85869776 0.86797804 0.85217463]
-    Modelo estável. Prosseguindo para treino final.
-    
-    --- Treinando Classificador Final (Target: LOS > 8 dias) ---
-    
-    Análise de Corte (Threshold):
-    Melhor Threshold Matemático (Max F1): 0.641
-    Threshold Escolhido para o Negócio:  0.350
-    COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)
-    
-    AUC-ROC Global (Teste): 0.8700
-    
-    --- CENÁRIO PADRÃO (Corte 0.50) ---
-    Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.
-                  precision    recall  f1-score   support
-    
-               0       0.96      0.81      0.87      1861
-               1       0.38      0.76      0.51       292
-    
-        accuracy                           0.80      2153
-       macro avg       0.67      0.78      0.69      2153
-    weighted avg       0.88      0.80      0.82      2153
-    
-    
-    --- CENÁRIO OTIMIZADO (Corte 0.35) ---
-    Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.
-                  precision    recall  f1-score   support
-    
-               0       0.97      0.72      0.82      1861
-               1       0.32      0.84      0.46       292
-    
-        accuracy                           0.73      2153
-       macro avg       0.64      0.78      0.64      2153
-    weighted avg       0.88      0.73      0.77      2153
+```text
+Validação Cruzada Estratificada (5 Folds)
+   Resultados da Validação Cruzada (AUC):
+   Média: 0.8615
+   Desvio Padrão: 0.0095
+   Scores por Fold: [0.85205907 0.87655941 0.85869776 0.86797804 0.85217463]
+Modelo estável. Prosseguindo para treino final.
+
+--- Treinando Classificador Final (Target: LOS > 8 dias) ---
+
+Análise de Corte (Threshold):
+Melhor Threshold Matemático (Max F1): 0.641
+Threshold Escolhido para o Negócio:  0.350
+
+COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)
+AUC-ROC Global (Teste): 0.8700
+
+--- CENÁRIO PADRÃO (Corte 0.50) ---
+Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.
+              precision    recall  f1-score   support
+
+           0       0.96      0.81      0.87      1861
+           1       0.38      0.76      0.51       292
+
+    accuracy                           0.80      2153
+   macro avg       0.67      0.78      0.69      2153
+weighted avg       0.88      0.80      0.82      2153
+
+
+--- CENÁRIO OTIMIZADO (Corte 0.35) ---
+Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.
+              precision    recall  f1-score   support
+
+           0       0.97      0.72      0.82      1861
+           1       0.32      0.84      0.46       292
+
+    accuracy                           0.73      2153
+   macro avg       0.64      0.78      0.64      2153
+weighted avg       0.88      0.73      0.77      2153
+```
     
     
 
