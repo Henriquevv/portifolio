@@ -733,3 +733,185 @@ Ao aumentar a sensibilidade, aceitamos naturalmente mais alertas.
 
 Conclusão:
 O modelo está calibrado para atuar como um Radar de Alta Sensibilidade. Ele prioriza a segurança, garantindo que a equipe de gestão de leitos receba alertas precoces sobre os pacientes que mais demandarão recursos.
+
+### 10. Auditoria Visual: O Equilíbrio entre Risco e Eficiência
+
+Para garantir que a decisão de calibragem (corte em 0.35) é a melhor para o hospital, utilizei a Curva ROC para visualizar o comportamento do modelo em todos os cenários possíveis.
+
+O que este gráfico nos diz:
+
+Prova de Eficácia (A Curva Laranja):
+    Quanto mais a linha laranja se curva em direção ao canto superior esquerdo, melhor o modelo distingue pacientes graves de pacientes simples. O gráfico confirma visualmente que o modelo é muito superior a uma escolha aleatória (linha pontilhada).
+
+A Visualização do "Custo" (O Ponto Vermelho):
+    Plotei o nosso ponto de corte escolhido (0.35) sobre a curva.
+    * Eixo Y (O Ganho): Mostra nossa alta taxa de detecção de casos graves (Sensibilidade).
+    * Eixo X (O Custo): Mostra a taxa de alarmes falsos que aceitamos pagar.
+    
+    Conclusão Visual: O ponto vermelho demonstra que estamos operando na região de máxima segurança assistencial, aceitando um aumento controlado na carga administrativa (falsos positivos) em troca de não perder pacientes críticos de vista.
+
+
+```python
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(y_test_class, y_proba_test)
+roc_auc = auc(fpr, tpr)
+
+close_default_index = np.argmin(np.abs(thresholds - THRESHOLD_ESCOLHIDO))
+fpr_t = fpr[close_default_index]
+tpr_t = tpr[close_default_index]
+
+plt.figure(figsize=(10, 8))
+
+plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {roc_auc:.4f})')
+
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Modelo Aleatório (50%)')
+
+plt.scatter(fpr_t, tpr_t, color='red', s=100, label=f'Corte Escolhido ({THRESHOLD_ESCOLHIDO})', zorder=5)
+
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Taxa de Falsos Positivos (1 - Especificidade)\n"Alarmes Falsos"', fontsize=12)
+plt.ylabel('Taxa de Verdadeiros Positivos (Sensibilidade)\n"Casos Reais Detectados"', fontsize=12)
+plt.title('Curva ROC - Capacidade de Distinção do Modelo', fontsize=14)
+plt.legend(loc="lower right", fontsize=12)
+plt.grid(alpha=0.3)
+
+plt.annotate(f'Sensibilidade: {tpr_t:.1%}\nFalsos Positivos: {fpr_t:.1%}',
+             xy=(fpr_t, tpr_t), xytext=(fpr_t + 0.1, tpr_t - 0.1),
+             arrowprops=dict(facecolor='black', shrink=0.05),
+             fontsize=11, backgroundcolor='white')
+
+plt.show()
+
+print(f"INTERPRETAÇÃO:")
+print(f"1. A AUC de {roc_auc:.2f} indica que o modelo tem {roc_auc:.1%} de chance de classificar corretamente")
+print(f"   um paciente de longa permanência versus um de curta permanência.")
+print(f"2. O ponto vermelho mostra nossa escolha estratégica: aceitamos uma taxa de falsos positivos de {fpr_t:.1%}")
+print(f"   para garantir que detectamos {tpr_t:.1%} dos casos graves.")
+```
+
+
+    
+![png](/images/projects/los/8.png)
+    
+
+
+    INTERPRETAÇÃO:
+    1. A AUC de 0.87 indica que o modelo tem 87.0% de chance de classificar corretamente
+       um paciente de longa permanência versus um de curta permanência.
+    2. O ponto vermelho mostra nossa escolha estratégica: aceitamos uma taxa de falsos positivos de 28.9%
+       para garantir que detectamos 84.2% dos casos graves.
+    
+
+### Do Algoritmo ao Protocolo: O Impacto na Ponta
+
+Para que o modelo saia do computador e entre na rotina do hospital, traduzi os resultados estatísticos (com o corte calibrado em 0.35) em regras de negócio claras.
+
+O "Contrato de Confiança" do Modelo (KPIs Clínicos):
+
+A Rede de Segurança (Sensibilidade/Recall):
+    * *Pergunta:* De todos os pacientes que realmente vão \"travar\" um leito, quantos nós pegamos?
+    * *Impacto:* Mede nossa capacidade de blindar o hospital contra surpresas desagradáveis.
+
+O Filtro de Eficiência (Especificidade):
+    * *Pergunta:* Quão bem o modelo consegue separar os casos simples para não incomodar a equipe à toa?
+    * *Impacto:* Evita o desperdício de tempo da equipe de gestão de alta com pacientes que sairão sozinhos.
+
+A Credibilidade do Alerta (Valor Preditivo Positivo - VPP):
+    * *Pergunta:* Quando o sistema dispara um alerta vermelho, qual a chance de ser real?
+    * *Impacto:* Define a urgência da ação. Aceitamos um VPP menor (mais alertas falsos) conscientemente para garantir segurança máxima.
+
+A Segurança do "Sinal Verde" (Valor Preditivo Negativo - VPN):
+    * *Pergunta Crítica:* Quando o sistema diz que é "Baixo Risco", qual a certeza de que ele não vai complicar?
+    * *Impacto:* Esta é a métrica vital para automação. Se este valor for alto, a equipe pode confiar no "piloto automático" para a maioria dos pacientes e focar apenas nas exceções.
+
+
+```python
+tn, fp, fn, tp = cm_otim.ravel()
+
+
+sensibilidade = tp / (tp + fn)
+especificidade = tn / (tn + fp)
+vpp = tp / (tp + fp)
+vpn = tn / (tn + fn)
+
+
+acuracia_bal = (sensibilidade + especificidade) / 2
+
+print(f"--- RELATÓRIO CLÍNICO FINAL (Threshold > {THRESHOLD_ESCOLHIDO:.2f}) ---")
+print(f"Total de Pacientes no Teste: {len(y_test_class)}")
+print(f"Pacientes de Longa Permanência Reais: {tp + fn}")
+print(f"-" * 40)
+
+print(f"1. SENSIBILIDADE (RECALL): {sensibilidade:.1%}")
+print(f"   >> De todos os pacientes que FICARAM muito tempo, detectamos {sensibilidade:.1%}.")
+print(f"   >> Perdemos apenas {fn} casos (Falsos Negativos).")
+
+print(f"\n2. ESPECIFICIDADE: {especificidade:.1%}")
+print(f"   >> De todos que saíram rápido, o modelo acertou {especificidade:.1%}.")
+print(f"   >> Geramos {fp} alarmes falsos (Falsos Positivos) que a equipe terá que checar.")
+
+print(f"\n3. VALOR PREDITIVO POSITIVO (PRECISÃO): {vpp:.1%}")
+print(f"   >> Quando o modelo grita 'ALERTA', ele está certo {vpp:.1%} das vezes.")
+print(f"   >> Isso é o 'custo' de ter alta sensibilidade: revisamos mais gente para não perder ninguém.")
+
+print(f"\n4. VALOR PREDITIVO NEGATIVO (VPN): {vpn:.1%}")
+print(f"   >> Quando o modelo diz 'Tudo bem', ele está certo {vpn:.1%} das vezes.")
+print(f"   >> Isso dá muita segurança para a equipe focar nos alertas.")
+
+print(f"-" * 40)
+print(f"RESUMO PARA GESTÃO:")
+print(f"\"O modelo funciona como uma rede de segurança de alta confiabilidade.")
+print(f"A cada 10 pacientes que ele libera como 'Baixo Risco', {int(vpn*10)} realmente terão alta rápida.")
+print(f"Isso permite que a equipe foque 100% da atenção nos pacientes marcados como 'Alto Risco'.\"")
+```
+
+    --- RELATÓRIO CLÍNICO FINAL (Threshold > 0.35) ---
+    Total de Pacientes no Teste: 2153
+    Pacientes de Longa Permanência Reais: 292
+    ----------------------------------------
+    1. SENSIBILIDADE (RECALL): 84.2%
+       >> De todos os pacientes que FICARAM muito tempo, detectamos 84.2%.
+       >> Perdemos apenas 46 casos (Falsos Negativos).
+    
+    2. ESPECIFICIDADE: 71.5%
+       >> De todos que saíram rápido, o modelo acertou 71.5%.
+       >> Geramos 530 alarmes falsos (Falsos Positivos) que a equipe terá que checar.
+    
+    3. VALOR PREDITIVO POSITIVO (PRECISÃO): 31.7%
+       >> Quando o modelo grita 'ALERTA', ele está certo 31.7% das vezes.
+       >> Isso é o 'custo' de ter alta sensibilidade: revisamos mais gente para não perder ninguém.
+    
+    4. VALOR PREDITIVO NEGATIVO (VPN): 96.7%
+       >> Quando o modelo diz 'Tudo bem', ele está certo 96.7% das vezes.
+       >> Isso dá muita segurança para a equipe focar nos alertas.
+    ----------------------------------------
+    RESUMO PARA GESTÃO:
+    "O modelo funciona como uma rede de segurança de alta confiabilidade.
+    A cada 10 pacientes que ele libera como 'Baixo Risco', 9 realmente terão alta rápida.
+    Isso permite que a equipe foque 100% da atenção nos pacientes marcados como 'Alto Risco'."
+    
+
+### Modelo Operacional: Como usar esta ferramenta na prática?
+
+Após validar a performance técnica, traduzi os números em diretrizes de uso para o dia a dia hospitalar. O modelo não é uma bola de cristal, mas um filtro de priorização.
+
+Perfil de Comportamento do Modelo:
+
+#### O "Sentinela Conservador" (Viés de Segurança)
+A análise de calibração mostrou que o modelo tem um perfil protetor.
+* Comportamento: Diante da dúvida (risco médio), ele prefere errar pelo excesso de cautela e classificar como "Alto Risco".
+* Diretriz: A equipe deve encarar o score não como uma certeza absoluta de que o paciente vai ficar 20 dias, mas como um Índice de Prioridade. Quem tem score alto deve ser visitado primeiro.
+
+#### A Fila Rápida Confiável (VPN = 96.7%)
+Este é o maior ganho de eficiência do projeto.
+* O Dado: Quando o modelo diz "Risco Baixo" (Sinal Verde), ele acerta em 96.7% das vezes.
+* Diretriz: Podemos criar um "Fast Track" administrativo para esses pacientes. A equipe pode reduzir drasticamente o tempo gasto monitorando esses casos, liberando horas de trabalho para focar nos casos complexos.
+
+#### O Custo da Atenção (VPP = 31.7%)
+Para garantir que não perderíamos pacientes graves, aceitamos que o modelo dispare mais alertas.
+* A Realidade: De cada 3 alertas vermelhos, 1 será crítico e 2 serão alarmes falsos (pacientes que, apesar do perfil de risco, terão alta rápida).
+* Diretriz: O alerta dispara uma Sondagem, não uma intervenção. O custo de checar 2 pacientes a mais é o "preço do seguro" que pagamos para garantir a detecção daquele 1 paciente crítico.
+
+Veredito:
+A ferramenta funciona segregando o fluxo em dois: uma via expressa de baixo monitoramento (para a maioria) e uma lista de atenção focal (para os alertas), otimizando a alocação da equipe de gestão de leitos.
