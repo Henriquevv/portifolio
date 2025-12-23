@@ -1194,3 +1194,115 @@ Variáveis como Frequência Cardíaca e Pressão Arterial aparecem com destaque.
 
 Veredito:
 A análise SHAP atesta a sanidade clínica do modelo. Ele não está usando correlações espúrias (coincidências), mas sim reproduzindo padrões fisiopatológicos e operacionais conhecidos, o que é essencial para sua aceitação pelo corpo clínico.
+
+### 14. Mapeamento de Causas: O que realmente segura o paciente?
+
+Para atacar o problema da longa permanência, não basta saber *quem* vai ficar; precisamos entender o *porquê*.
+
+Utilizei a Regressão de Cox (Multivariada) para isolar o impacto de cada variável. Diferente da análise anterior, este modelo "desconta" os efeitos cruzados (ex: ele separa o peso da Idade do peso da Doença), revelando os verdadeiros ofensores do giro de leitos.
+
+Como interpretar os Resultados (Hazard Ratio - HR):
+
+O modelo calcula um índice de velocidade de alta. O ponto neutro é 1.0.
+* Ofensores (HR < 1.0): Fatores que "seguram" o paciente no hospital. Quanto menor o número, pior o impacto.
+    * *Exemplo:* Se "Urgência" tiver HR 0.5, significa que esses pacientes têm metade da velocidade de alta dos eletivos.
+* Aceleradores (HR > 1.0): Fatores associados a altas rápidas.
+    * *Exemplo:* Se um CID tiver HR 2.0, esses pacientes giram o leito duas vezes mais rápido que a média.
+
+Objetivo: Identificar quais fatores clínicos ou administrativos têm o maior poder de retenção para focar neles os protocolos de eficiência.
+
+
+```python
+
+from lifelines import CoxPHFitter
+
+cols_cox_base = ['IDADE', 'SEXO', 'CID_CAPITULO', 'CARATER_ATENDIMENTO']
+cols_comorb = [c for c in cols_flags if c in df_mestre.columns]
+
+df_cox = df_mestre[['LOS', 'Evento_ocorreu'] + cols_cox_base + cols_comorb].copy()
+
+
+df_cox['IDADE'] = df_cox['IDADE'].fillna(df_cox['IDADE'].median())
+df_cox = df_cox.dropna()
+
+df_cox_dummy = pd.get_dummies(df_cox, drop_first=True)
+
+df_cox_dummy.columns = [c.replace(' ', '_').replace('/', '_').replace('-', '_') for c in df_cox_dummy.columns]
+
+print(f"Dataset Cox pronto. Dimensões: {df_cox_dummy.shape}")
+
+cph = CoxPHFitter(penalizer=0.1)
+
+try:
+    cph.fit(df_cox_dummy, duration_col='LOS', event_col='Evento_ocorreu')
+
+    plt.figure(figsize=(10, 8))
+    cph.plot()
+    plt.title("Hazard Ratios (Risco Relativo de Alta)")
+    plt.axvline(x=0, color='red', linestyle='--')
+    plt.xlabel("Impacto na Probabilidade de Alta (log-scale)")
+    plt.show()
+
+    print("\nResumo Estatístico (P-values e HR)")
+    summary = cph.summary
+    display(summary[summary['p'] < 0.05].sort_values('coef'))
+
+except Exception as e:
+    print(f"Não foi possível ajustar o Cox (provavelmente multicolinearidade): {e}")
+```
+
+    Dataset Cox pronto. Dimensões: (10750, 37)
+  
+    
+![png](/images/projects/los/12.png)
+    
+Resumo Estatístico (P-values e HR)
+coef	exp(coef)	se(coef)	coef lower 95%	coef upper 95%	exp(coef) lower 95%	exp(coef) upper 95%	cmp to	z	p	-log2(p)
+covariate											
+CARATER_ATENDIMENTO_URGENCIA	-1.530013	0.216533	0.023494	-1.576061	-1.483965	0.206788	0.226737	0.0	-65.122442	0.000000e+00	inf
+CID_CAPITULO_Q	-0.753743	0.470602	0.190935	-1.127968	-0.379519	0.323690	0.684191	0.0	-3.947654	7.892064e-05	13.629238
+FL_NEOPLASIA	-0.614956	0.540665	0.058938	-0.730472	-0.499439	0.481681	0.606871	0.0	-10.433907	1.736004e-25	82.252432
+FL_DIABETES	-0.568587	0.566325	0.118567	-0.800974	-0.336199	0.448892	0.714481	0.0	-4.795479	1.622869e-06	19.233022
+CID_CAPITULO_G	-0.243897	0.783569	0.088339	-0.417038	-0.070755	0.658996	0.931690	0.0	-2.760911	5.764030e-03	7.438706
+FL_INSUF_CARDIACA	-0.243502	0.783878	0.082558	-0.405314	-0.081691	0.666768	0.921557	0.0	-2.949457	3.183325e-03	8.295250
+FL_DOENCA_RENAL	-0.231885	0.793037	0.080181	-0.389037	-0.074733	0.677709	0.927991	0.0	-2.892022	3.827716e-03	8.029301
+SEXO_M	-0.077686	0.925255	0.018754	-0.114444	-0.040929	0.891862	0.959898	0.0	-4.142330	3.437951e-05	14.828091
+IDADE	-0.007210	0.992816	0.000367	-0.007929	-0.006490	0.992102	0.993531	0.0	-19.637047	7.461308e-86	282.786388
+CID_CAPITULO_R	0.108355	1.114443	0.047711	0.014843	0.201867	1.014954	1.223686	0.0	2.271063	2.314319e-02	5.433268
+CID_CAPITULO_n	0.157964	1.171124	0.032728	0.093819	0.222109	1.098361	1.248708	0.0	4.826613	1.388745e-06	19.457787
+CID_CAPITULO_S	0.208270	1.231545	0.058707	0.093207	0.323333	1.097689	1.381725	0.0	3.547641	3.886979e-04	11.329063
+CID_CAPITULO_C	0.220495	1.246694	0.071473	0.080411	0.360579	1.083733	1.434160	0.0	3.085027	2.035336e-03	8.940517
+CID_CAPITULO_K	0.224078	1.251169	0.040613	0.144478	0.303679	1.155436	1.354833	0.0	5.517370	3.441098e-08	24.792556
+CID_CAPITULO_T	0.291023	1.337795	0.039628	0.213353	0.368692	1.237821	1.445843	0.0	7.343838	2.075551e-13	42.131571
+CID_CAPITULO_V	1.074740	2.929232	0.238298	0.607684	1.541796	1.836175	4.672975	0.0	4.510066	6.480754e-06	17.235407
+    
+
+
+
+
+
+### Discussão dos Resultados: O Que Impacta o Tempo de Internação?
+
+Utilizando a análise multivariada (Regressão de Cox), conseguimos isolar o impacto real de cada variável na probabilidade de alta do paciente. Abaixo, traduzimos os coeficientes estatísticos (*Hazard Ratios*) em impactos operacionais claros.
+
+#### O Grande Gargalo: Admissões via Urgência (HR ≈ 0.21)
+A variável `CARATER_ATENDIMENTO_URGENCIA` provou ser o maior ofensor do giro de leitos.
+* O que o dado diz: Um paciente admitido pela urgência tem uma probabilidade de alta diária 80% menor do que um paciente eletivo com características similares.
+* Impacto no Negócio: Isso confirma estatisticamente que a imprevisibilidade da porta de entrada (Urgência) é a principal causadora de retenção de leitos. Processos desenhados para pacientes eletivos não funcionam aqui.
+
+#### Complexidade Clínica como Redutor de Velocidade
+O modelo quantificou exatamente o quanto condições crônicas "freiam" a alta:
+* Oncologia (HR ≈ 0.54): Pacientes com neoplasia têm a velocidade de alta reduzida em 46%. É o fator clínico de maior peso, exigindo gestão de caso dedicada.
+* Diabetes (HR ≈ 0.56): A presença de diabetes reduz a chance de alta em 44%, indicando que a estabilização clínica dessa comorbidade consome dias preciosos de internação.
+
+#### O Peso da Idade na Ocupação
+* Idade (HR ≈ 0.992): O envelhecimento atua como um fator de risco progressivo. A cada 10 anos a mais de vida, a agilidade na alta cai cerca de 8%. Embora pareça pouco isoladamente, em pacientes idosos esse efeito se acumula, tornando-os consumidores de longa permanência por natureza.
+
+#### Oportunidades de Giro Rápido (HR > 1.0)
+Identificamos perfis que aceleram o fluxo e podem ser otimizados:
+* Causas Externas (Capítulo V): Apresentou o maior potencial de alta (HR ≈ 2.92). Pacientes desse grupo (ex: pequenos acidentes) giram quase 3x mais rápido que a média.
+* Lesões e Traumas (Capítulo T): Com HR de 1.33, também indicam um perfil de resolução rápida.
+
+Conclusão e Estratégia Sugerida:
+A análise comprova que o Tempo de Permanência (LOS) é fortemente penalizado pela Origem (Urgência) e pela Carga de Doença.
+Do ponto de vista de gestão, os dados sugerem que misturar esses perfis no mesmo fluxo gera ineficiência.
