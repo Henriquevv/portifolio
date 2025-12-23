@@ -73,3 +73,93 @@ Além das ferramentas padrão de processamento de dados, selecionei pacotes espe
 ```python
 !pip install xgboost lifelines scikit-survival shap pandas openpyxl
 ```
+
+### 4. Construção da Base Analítica e Engenharia de Variáveis
+
+Dados extraídos diretamente do sistema de gestão (ERP) costumam conter ruídos que distorcem indicadores. Nesta etapa, processei a base bruta para garantir que o modelo aprenda com a realidade operacional, e não com erros de registro.
+
+Transformações Estratégicas:
+
+* Saneamento Temporal: Padronização rigorosa das datas de entrada e saída. Isso evita que erros de digitação (ex: trocar dia por mês) criem "outliers artificiais" que prejudicariam a média de permanência.
+* Cálculo de Ocupação Real (LOS): Definição do tempo de estadia ($\Delta t$). Ajustei casos de "alta no mesmo dia" para garantir que todo paciente contabilize consumo de recursos, eliminando valores nulos.
+* Gestão de Pacientes Ativos (Censura): Um diferencial da Análise de Sobrevivência. Criei a variável de evento ($E$) para ensinar o modelo a distinguir:
+    * $E=1$: Ciclo fechado (Paciente teve Alta/Óbito).
+    * $E=0$: Censura (Paciente *ainda está no leito*). Isso impede que o modelo ache que uma internação longa em andamento é um erro ou um dado faltante.
+* Estabilização Estatística (Log-Transform): Como o tempo de internação não segue uma curva normal (muitos pacientes rápidos, poucos muito demorados), apliquei uma transformação logarítmica (`np.log1p`). Isso equilibra o peso dos casos extremos, permitindo que o modelo aprenda os padrões da maioria sem ignorar os casos complexos.
+
+
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+%matplotlib inline
+sns.set_style('whitegrid')
+
+arquivo_carregado = False
+try:
+    df = pd.read_excel('LOS.xlsx')
+    print("Dataset carregado", df.shape)
+    arquivo_carregado = True
+except FileNotFoundError:
+    print("Arquivo não encontrado. ")
+
+
+if arquivo_carregado:
+
+    df['DT_ENTRADA'] = pd.to_datetime(df['DT_ENTRADA'], dayfirst=True, errors='coerce')
+    df['DT_SAIDA'] = pd.to_datetime(df['DT_SAIDA'], dayfirst=True, errors='coerce')
+
+    if 'DIAS_DE_PERMANENCIA' in df.columns:
+        df['DIAS_DE_PERMANENCIA'] = pd.to_numeric(df['DIAS_DE_PERMANENCIA'], errors='coerce')
+
+    df['LOS_CALCULADO'] = (df['DT_SAIDA'] - df['DT_ENTRADA']).dt.days
+    df['LOS'] = df['LOS_CALCULADO'].apply(lambda x: 1 if (pd.notna(x) and x == 0) else x)
+
+    df['Evento_ocorreu'] = np.where(df['DT_SAIDA'].notna(), 1, 0)
+
+    data_referencia = df['DT_SAIDA'].max()
+    if pd.isna(data_referencia):
+        data_referencia = pd.Timestamp.now()
+
+    mask_internado = df['DT_SAIDA'].isna()
+    if mask_internado.any():
+         df.loc[mask_internado, 'LOS'] = (data_referencia - df.loc[mask_internado, 'DT_ENTRADA']).dt.days
+
+    df['LOS'] = df['LOS'].fillna(0).clip(lower=1)
+
+    df['LOS_LOG'] = np.log1p(df['LOS'])
+
+    if 'CD_CID_PRINCIPAL' in df.columns:
+        df['CID_CAPITULO'] = df['CD_CID_PRINCIPAL'].astype(str).str[0].fillna('ND')
+    else:
+        df['CID_CAPITULO'] = 'ND'
+
+    cols_demograficas = ['IDADE', 'SEXO']
+    cols_clinicas = [
+        'CID_CAPITULO', 'CD_CID_PRINCIPAL',
+        'FL_HIPERTENSAO', 'FL_DIABETES', 'FL_DOENCA_RENAL',
+        'FL_NEOPLASIA', 'FL_INSUF_CARDIACA', 'FL_DOENCA_PULMONAR',
+        'HIST_QTD_INTERNACOES_ANO'
+    ]
+
+    cols_flags = [c for c in cols_clinicas if c.startswith('FL_')]
+    df[cols_flags] = df[cols_flags].fillna(0)
+
+    cols_contexto = ['CARATER_ATENDIMENTO', 'ORIGEM_PACIENTE', 'CD_SETOR_ENTRADA', 'TIPO_SAIDA']
+    cols_sinais_vitais = ['SV_PAS_ADMISSAO', 'SV_PAD_ADMISSAO', 'SV_FREQ_CARDIACA']
+
+    todas_cols_desejadas = cols_demograficas + cols_clinicas + cols_contexto + cols_sinais_vitais
+    cols_existentes = [c for c in todas_cols_desejadas if c in df.columns]
+
+    colunas_finais = cols_existentes + ['DT_ENTRADA', 'DT_SAIDA', 'LOS', 'LOS_LOG', 'Evento_ocorreu']
+    df_mestre = df[colunas_finais].copy()
+
+    print("\n Dataset Mestre Criado")
+    print("Dimensões:", df_mestre.shape)
+    display(df_mestre[['CD_CID_PRINCIPAL', 'CID_CAPITULO', 'LOS', 'LOS_LOG']].head())
+else:
+    print("Erro de carregamento")
+```
