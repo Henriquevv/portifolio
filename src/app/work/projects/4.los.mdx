@@ -216,21 +216,115 @@ A análise exploratória serviu para validar a qualidade dos dados e, principalm
 
 Principais Descobertas:
 
-#### 1. A "Armadilha da Média"
+#### A "Armadilha da Média"
 Identifiquei uma discrepância crítica entre as métricas centrais:
 * Média: 5.35 dias.
 * Mediana: 2.00 dias.
 
 Insight de Negócio: O paciente "típico" fica apenas 2 dias. A média é inflada (mais que o dobro da mediana) por poucos casos de longuíssima permanência. Utilizar a média simples para planejamento de capacidade geraria distorções graves, alocando recursos errados para a maioria dos pacientes.
 
-#### 2. Identificação da Cauda Longa (Assimetria)
+#### Identificação da Cauda Longa (Assimetria)
 O histograma confirmou que a operação lida com dois perfis de ocupação muito distintos:
 * Giro Rápido (0-5 dias): A grande maioria dos casos.
 * Cauda Longa (Extremos): Casos de alta complexidade que, embora menos frequentes, consomem desproporcionalmente os dias-leito disponíveis.
 
-#### 3. Correção Técnica (Transformação Logarítmica)
+#### Correção Técnica (Transformação Logarítmica)
 Para lidar com essa assimetria, apliquei a função `np.log1p` na variável alvo.
 * Objetivo: Comprimir a escala dos valores extremos (dias muito altos) para aproximar a distribuição de uma curva normal. Isso impede que o algoritmo de regressão fique "confuso" tentando ajustar o erro apenas pelos casos extremos, melhorando a precisão geral.
 
 Decisão Estratégica:
 Dada a alta variabilidade confirmada, concluí que um modelo de regressão pura (prever o dia exato) terá limitações naturais. Portanto, a estratégia mais robusta para o hospital é atuar em duas frentes: estimar a duração, mas principalmente Classificar o Risco, segregando pacientes de "Giro Rápido" vs. "Longa Permanência" (> 8 dias).
+
+### 6. Refinamento dos Dados e Criação de Inteligência
+
+Para que o modelo enxergue padrões complexos, não basta entregar os dados brutos do sistema. Realizei um processo de **Engenharia de Atributos** para traduzir registros administrativos em fatores de risco tangíveis para o algoritmo.
+
+**Estratégias de Enriquecimento:**
+
+1.  **Contexto Sazonal (`IS_INVERNO`):**
+    Criei um indicador específico para o período de junho a setembro. Isso ensina o modelo que, nestes meses, a complexidade dos casos aumenta naturalmente (devido a doenças respiratórias), ajustando a previsão de permanência para cima independente do diagnóstico base.
+
+2.  **Saneamento de Sinais Vitais:**
+    Implementei filtros de segurança para dados fisiológicos. Valores impossíveis (ex: Pressão Arterial ou Saturação zeradas) foram tratados como erro de aferição/digitação e corrigidos estatisticamente. Isso impede que o modelo confunda um erro de cadastro na triagem com um paciente em óbito ou alta gravidade.
+
+3.  **Tradução de Dados Clínicos:**
+    Algoritmos matemáticos não interpretam texto. Converti variáveis qualitativas (como Especialidade e Convênio) em representações numéricas binárias (*One-Hot Encoding*), permitindo que o modelo pondere o peso exato de cada especialidade no tempo de ocupação.
+
+4.  **Protocolo de Validação (Split Estratificado):**
+    Separei 20% dos dados para teste. A divisão foi feita garantindo que a proporção de pacientes de alta vs. internados fosse idêntica nos dois grupos, simulando com fidelidade o mix de pacientes que o hospital recebe no dia a dia.
+
+
+```python
+from sklearn.model_selection import train_test_split
+import pandas as pd
+import numpy as np
+
+if 'df_mestre' not in locals():
+    print("df_mestre não encontrado. Usando df.")
+    df_final = df.copy()
+else:
+    df_final = df_mestre.copy()
+
+
+#Sazonalidade
+if 'DT_ENTRADA' in df_final.columns:
+    df_final['DIA_SEMANA'] = df_final['DT_ENTRADA'].dt.day_name()
+    df_final['MES'] = df_final['DT_ENTRADA'].dt.month
+    # Flag para meses de Inverno/Outono (ajuste conforme sua região, aqui assumindo Sul/Sudeste)
+    df_final['IS_INVERNO'] = df_final['MES'].isin([5, 6, 7, 8]).astype(int)
+
+# Se um capítulo de CID aparece pouco, agrupa como 'OUTROS' para não gerar ruído
+contagem_cid = df_final['CID_CAPITULO'].value_counts()
+cids_raros = contagem_cid[contagem_cid < 50].index # Menos de 50 casos
+df_final['CID_CAPITULO'] = df_final['CID_CAPITULO'].apply(lambda x: 'OUTROS' if x in cids_raros else x)
+
+
+# Sinais Vitais
+cols_sinais = ['SV_PAS_ADMISSAO', 'SV_PAD_ADMISSAO', 'SV_FREQ_CARDIACA', 'SV_FREQ_RESPIRATORIA', 'SV_TEMPERATURA', 'SV_SATURACAO_O2']
+for col in cols_sinais:
+    if col in df_final.columns and df_final[col].dtype == 'O':
+        df_final[col] = pd.to_numeric(df_final[col].astype(str).str.replace(',', '.'), errors='coerce')
+
+features_num = ['IDADE', 'HIST_QTD_INTERNACOES_ANO'] + [c for c in cols_sinais if c in df_final.columns]
+
+# Categóricas e Binárias
+cols_cat_candidatas = ['SEXO', 'CARATER_ATENDIMENTO', 'DIA_SEMANA', 'ORIGEM_PACIENTE', 'CID_CAPITULO', 'DS_CLINICA']
+features_cat = [c for c in cols_cat_candidatas if c in df_final.columns]
+
+cols_flags = ['FL_HIPERTENSAO', 'FL_DIABETES', 'FL_DOENCA_RENAL', 'FL_NEOPLASIA', 'FL_INSUF_CARDIACA', 'FL_DOENCA_PULMONAR', 'IS_INVERNO']
+features_bin = [c for c in cols_flags if c in df_final.columns]
+
+all_features = features_num + features_cat + features_bin
+
+for col in features_num:
+    df_final[col] = df_final[col].replace([np.inf, -np.inf], np.nan)
+
+for col in features_bin:
+    df_final[col] = df_final[col].fillna(0)
+
+print(f"Features selecionadas: {len(all_features)}")
+
+X = df_final[all_features]
+y_reg = df_final['LOS_LOG']
+y_days = df_final['LOS']
+y_event = df_final['Evento_ocorreu']
+
+# Split
+X_train, X_test, y_train, y_test, y_days_train, y_days_test, e_train, e_test = train_test_split(
+    X, y_reg, y_days, y_event, test_size=0.2, random_state=42
+)
+
+print("\nSplit Realizado")
+print(f"Treino: {X_train.shape[0]} | Teste: {X_test.shape[0]}")
+
+
+%store features_num features_cat features_bin
+```
+
+    Features selecionadas: 17
+    
+    Split Realizado
+    Treino: 8608 | Teste: 2153
+    Stored 'features_num' (list)
+    Stored 'features_cat' (list)
+    Stored 'features_bin' (list)
