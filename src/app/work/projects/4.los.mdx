@@ -866,7 +866,7 @@ print(f"A cada 10 pacientes que ele libera como 'Baixo Risco', {int(vpn*10)} rea
 print(f"Isso permite que a equipe foque 100% da atenção nos pacientes marcados como 'Alto Risco'.\"")
 ```
 
-    --- RELATÓRIO CLÍNICO FINAL (Threshold > 0.35) ---
+    RELATÓRIO CLÍNICO FINAL (Threshold > 0.35) 
     Total de Pacientes no Teste: 2153
     Pacientes de Longa Permanência Reais: 292
     ----------------------------------------
@@ -915,3 +915,77 @@ Para garantir que não perderíamos pacientes graves, aceitamos que o modelo dis
 
 Veredito:
 A ferramenta funciona segregando o fluxo em dois: uma via expressa de baixo monitoramento (para a maioria) e uma lista de atenção focal (para os alertas), otimizando a alocação da equipe de gestão de leitos.
+
+### 11. Auditoria de Confiabilidade: O Modelo é "Honesto"?
+
+Em saúde, não basta o modelo acertar a classificação (Alta vs. Baixa); a confiança dele precisa ser realista. Se o algoritmo diz que um paciente tem 80% de risco, esperamos que, estatisticamente, 80% dos pacientes com essa nota realmente tenham longa permanência.
+
+Para verificar isso, utilizei a Curva de Calibração (Reliability Diagram), que funciona como um "detector de mentiras" para a probabilidade matemática.
+
+Como ler este diagnóstico:
+
+* A Linha da Verdade (Diagonal Pontilhada): Representa a calibração perfeita. Se a curva do modelo seguir esta linha, ele "sabe o que diz".
+* Viés de "Alarmismo" (Abaixo da linha): Se a curva do modelo estiver abaixo da diagonal, ele está superestimando o risco (diz que é 90%, mas na realidade acontece em apenas 60% dos casos).
+* Viés de "Negligência" (Acima da linha): Se estiver acima, ele está subestimando o perigo (diz que é tranquilo, mas o paciente complica).
+
+
+
+```python
+
+from sklearn.calibration import calibration_curve
+from sklearn.linear_model import LogisticRegression
+
+prob_true, prob_pred = calibration_curve(y_test_class, y_proba_test, n_bins=10)
+
+
+plt.figure(figsize=(10, 8))
+
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Perfeitamente Calibrado')
+plt.plot(prob_pred, prob_true, marker='o', linewidth=2, label='Modelo XGBoost')
+plt.xlabel('Probabilidade Predita pelo Modelo (Risco Calculado)', fontsize=12)
+plt.ylabel('Fração Real de Casos Longos (Observado)', fontsize=12)
+plt.title('Curva de Calibração - O modelo é confiável?', fontsize=14)
+plt.legend(fontsize=12)
+plt.grid(alpha=0.3)
+
+plt.twinx()
+plt.hist(y_proba_test, range=(0, 1), bins=10, color='gray', alpha=0.1, label='Distribuição das Probs')
+plt.yticks([])
+
+plt.show()
+
+print(f"INTERPRETAÇÃO:")
+print(f"- Se os pontos azuis estiverem PRÓXIMOS da linha tracejada: O modelo é confiável.")
+print(f"- Se estiverem ABAIXO da linha: O modelo é EXAGERADO (diz 80%, mas só 60% ficam).")
+print(f"- Se estiverem ACIMA da linha: O modelo é SUBESTIMADO (diz 40%, mas 60% ficam).")
+print(f"\nNOTA: Modelos de árvore (Random Forest/XGBoost) tendem a não ser perfeitamente calibrados nativamente.")
+```
+
+
+    
+![png](/images/projects/los/9.png)
+    
+
+
+    INTERPRETAÇÃO:
+    - Se os pontos azuis estiverem PRÓXIMOS da linha tracejada: O modelo é confiável.
+    - Se estiverem ABAIXO da linha: O modelo é EXAGERADO (diz 80%, mas só 60% ficam).
+    - Se estiverem ACIMA da linha: O modelo é SUBESTIMADO (diz 40%, mas 60% ficam).
+    
+    NOTA: Modelos de árvore (Random Forest/XGBoost) tendem a não ser perfeitamente calibrados nativamente.
+    
+
+### Síntese de Performance: O Modelo é Seguro?
+
+A validação cruzada (testes repetidos em 5 cenários diferentes) confirmou a estabilidade da solução. Abaixo, traduzo as métricas estatísticas para o impacto esperado na operação diária do hospital.
+
+| Indicador | Resultado | O que isso significa para a Operação? |
+| :--- | :--- | :--- |
+| Rede de Segurança (Sensibilidade) | 79% | De cada 10 pacientes que *vão* ter longa permanência, o modelo detecta e alerta 8. Isso garante que a maioria dos casos críticos entre no radar precocemente. |
+| Filtro de Eficiência (Especificidade) | 76% | O modelo consegue descartar 3 em cada 4 pacientes de baixo risco automaticamente, poupando a equipe de monitorar casos simples desnecessariamente. |
+| Qualidade Global (AUC-ROC) | 0.83 | O algoritmo tem alta capacidade de distinção. Ele raramente confunde um paciente complexo com um simples, o que gera confiança na equipe médica. |
+| Acerto Geral (Acurácia) | 81% | Em 8 de cada 10 admissões, a previsão do modelo (Se vai ser Longa ou Curta) se concretiza. |
+
+Veredito:
+O modelo apresenta um perfil equilibrado e seguro. A estratégia adotada priorizou a Sensibilidade (79%) em vez de maximizar cegamente a Acurácia global.
+* *Por que isso é bom para o negócio?* Em saúde, é preferível checar um alarme falso (custo administrativo baixo) do que deixar passar um paciente grave (custo assistencial alto). O modelo reflete essa prioridade.
