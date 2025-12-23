@@ -989,3 +989,116 @@ A validação cruzada (testes repetidos em 5 cenários diferentes) confirmou a e
 Veredito:
 O modelo apresenta um perfil equilibrado e seguro. A estratégia adotada priorizou a Sensibilidade (79%) em vez de maximizar cegamente a Acurácia global.
 * *Por que isso é bom para o negócio?* Em saúde, é preferível checar um alarme falso (custo administrativo baixo) do que deixar passar um paciente grave (custo assistencial alto). O modelo reflete essa prioridade.
+
+### 12. Do Modelo à Prática: O Simulador de Decisão
+
+A matemática só gera valor quando se transforma em ação. Para tangibilizar o impacto do projeto, desenvolvi um Simulador de Admissão. O objetivo é demonstrar como o algoritmo se comportaria no "mundo real", recebendo um paciente na porta de entrada e devolvendo uma diretriz clara para o gestor.
+
+Objetivos da Simulação:
+
+Teste de "Sanidade Clínica":
+    Submeti o modelo a perfis de pacientes antagônicos (ex: um caso muito simples vs. um caso muito complexo).
+    * *A Prova:* Se o modelo sugerir alta rápida para um paciente idoso e grave, ele não serve. O simulador prova que a inteligência artificial aprendeu a respeitar a fisiologia e a lógica médica.
+
+Demonstração de Fluxo (Prescriptive Analytics):
+    Mais do que prever *o que* vai acontecer, o simulador sugere *o que fazer*.
+    * Para cada predição, o sistema acopla uma Ação Recomendada (ex: "Acionar Home Care" ou "Monitoramento Padrão"), fechando o ciclo entre o dado e a decisão.
+
+
+```python
+import pandas as pd
+import numpy as np
+
+CORTE_RISCO = 0.35
+
+def prever_internacao(dados_paciente):
+    novo_paciente = pd.DataFrame([dados_paciente])
+
+    dias_previstos = melhor_modelo.predict(novo_paciente)[0]
+
+    probabilidade = clf_model.predict_proba(novo_paciente)[0, 1]
+
+    if probabilidade >= CORTE_RISCO:
+        status = "🔴 ALERTA: ALTO RISCO DE LONGA PERMANÊNCIA"
+        acao = "Ação Sugerida: Acionar NIR / Gestão de Leitos imediatamente."
+    else:
+        status = "🟢 BAIXO RISCO (Fluxo Padrão)"
+        acao = "Ação Sugerida: Monitoramento padrão de rotina."
+
+    print("="*60)
+    print(f"SIMULAÇÃO DE ADMISSÃO HOSPITALAR")
+    print("="*60)
+    print(f"PACIENTE: {dados_paciente.get('SEXO', 'N/A')} | {dados_paciente.get('IDADE', 'N/A')} anos")
+    print(f"PERFIL: {dados_paciente.get('CID_CAPITULO', 'N/A')} | {dados_paciente.get('CARATER_ATENDIMENTO', 'N/A')}")
+    print("-" * 60)
+    print(f" Previsão de Estadia (Média): {dias_previstos:.1f} dias")
+    print(f" Probabilidade de Longa Permanência (>8 dias): {probabilidade:.1%} (Corte: {CORTE_RISCO:.0%})")
+    print("-" * 60)
+    print(f"STATUS: {status}")
+    print(f"NB: {acao}")
+    print("="*60 + "\n")
+
+# TESTANDO COM PACIENTES REAIS DO CONJUNTO DE TESTE
+
+# Caso 1: Vamos pegar um paciente que realmente ficou pouco tempo
+paciente_curto = X_test.iloc[0].to_dict()
+# Forçando alguns valores para testar cenários
+paciente_curto['IDADE'] = 35
+paciente_curto['CARATER_ATENDIMENTO'] = 'ELETIVO'
+
+# Caso 2: Vamos pegar um paciente que sabemos que é complicado
+paciente_longo = X_test.iloc[10].to_dict()
+# Vamos "piorar" o cenário dele para ver a reação do modelo
+paciente_longo['IDADE'] = 85
+paciente_longo['CARATER_ATENDIMENTO'] = 'URGENCIA'
+paciente_longo['FL_NEOPLASIA'] = 1
+
+print(">>> SIMULANDO PACIENTE 1 (Jovem, Eletivo):")
+prever_internacao(paciente_curto)
+
+print(">>> SIMULANDO PACIENTE 2 (Idoso, Urgência, Comorbidade):")
+prever_internacao(paciente_longo)
+```
+
+    >>> SIMULANDO PACIENTE 1 (Jovem, Eletivo):
+    ============================================================
+    SIMULAÇÃO DE ADMISSÃO HOSPITALAR
+    ============================================================
+    PACIENTE: M | 35 anos
+    PERFIL: N | ELETIVO
+    ------------------------------------------------------------
+     Previsão de Estadia (Média): 7.3 dias
+     Probabilidade de Longa Permanência (>8 dias): 15.5% (Corte: 35%)
+    ------------------------------------------------------------
+    STATUS: 🟢 BAIXO RISCO (Fluxo Padrão)
+    NB: Ação Sugerida: Monitoramento padrão de rotina.
+    ============================================================
+    
+    >>> SIMULANDO PACIENTE 2 (Idoso, Urgência, Comorbidade):
+    ============================================================
+    SIMULAÇÃO DE ADMISSÃO HOSPITALAR
+    ============================================================
+    PACIENTE: M | 85 anos
+    PERFIL: C | URGENCIA
+    ------------------------------------------------------------
+     Previsão de Estadia (Média): 23.1 dias
+     Probabilidade de Longa Permanência (>8 dias): 89.1% (Corte: 35%)
+    ------------------------------------------------------------
+    STATUS: 🔴 ALERTA: ALTO RISCO DE LONGA PERMANÊNCIA
+    NB: Ação Sugerida: Acionar NIR / Gestão de Leitos imediatamente.
+    ============================================================
+    
+    
+
+Análise dos Cenários Simulados:
+
+Validação de Coerência Clínica
+O modelo demonstrou sensibilidade correta aos fatores de risco conhecidos na literatura médica:
+* Cenário 1 (Jovem/Eletivo): O algoritmo identificou corretamente o perfil de baixa complexidade, atribuindo uma probabilidade de longa permanência de apenas 15.5% e uma estimativa de estadia curta (~7 dias).
+* Cenário 2 (Idoso/Urgência): Diante de fatores agravantes (Idade avançada + Admissão não planejada), o modelo reagiu elevando o risco para 89.1% e triplicando a estimativa de dias (~23 dias).
+* Conclusão: O sistema não opera como uma "caixa preta" aleatória; ele reproduz e quantifica a intuição clínica de que pacientes idosos em urgência demandam mais recursos.
+
+Do Dado à Ação (Prescriptive Analytics)
+O grande valor entregue não é o número estatístico em si, mas a diretriz operacional derivada dele:
+* Para o Paciente 1, a recomendação de "Monitoramento Padrão" evita o desperdício de recursos da equipe de gestão de alta com um caso que provavelmente se resolverá sozinho.
+* Para o Paciente 2, o alerta de "Ação Imediata" permite que o Hospital inicie o planejamento da alta (home care, oxigenoterapia, transporte) no Dia 1, evitando que burocracias atrasem a saída do paciente no Dia 23.
