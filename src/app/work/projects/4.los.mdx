@@ -42,3 +42,34 @@ team:
 ### VI. Conclusão Estratégica
 * 16. Previsão de Tempo de Internação (LOS): Estratégia Baseada em Dados e resumo dos impactos.
 * 17. Limitações e Oportunidades de Evolução: Próximos passos do projeto.
+
+---
+
+## 1. O Problema de Negócio
+A imprevisibilidade do Tempo de Permanência (LOS) é um dos maiores gargalos da operação hospitalar. Quando não sabemos quando o paciente terá alta, não conseguimos planejar o giro de leitos, o que gera superlotação no Pronto Socorro e cancelamento de cirurgias eletivas.
+
+Este projeto foi desenvolvido como um estudo de caso em Ciência de Dados, simulando cenários reais para demonstrar como o uso de dados pode reduzir essas incertezas.
+
+## 2. Proposta de Solução
+O objetivo é sair da média simples (que esconde os casos graves) e utilizar Inteligência Artificial para apoiar a tomada de decisão clínica. Para isso, estruturei a análise em três frentes:
+
+1.  Visibilidade do Fluxo (Análise de Sobrevivência): Mapear a probabilidade de alta do paciente dia após dia, permitindo prever a liberação de leitos.
+2.  Triagem de Risco (Classificação): Identificar, já na admissão, quais pacientes têm alto risco de longa permanência (> 8 dias) para que o NIR/Gestão de Alta atue preventivamente.
+3.  Diagnóstico de Causas (Inferência): Entender quais fatores (clínicos ou operacionais) estão "segurando" o paciente no hospital.
+
+---
+*Nota: Este notebook faz parte de um portfólio pessoal de estudos e utiliza estruturas de dados representativas do setor de saúde, respeitando princípios de privacidade e LGPD.*
+
+### 3. Preparação das Ferramentas de Análise
+
+Para conduzir este estudo, configurei um ambiente com bibliotecas de Ciência de Dados focadas em três pilares estratégicos: análise temporal, predição de risco e transparência dos modelos.
+
+Além das ferramentas padrão de processamento de dados, selecionei pacotes específicos para responder às perguntas de negócio:
+
+* Lifelines: Utilizada para a Análise de Sobrevivência, permitindo mapear a probabilidade de alta do paciente ao longo dos dias e entender a dinâmica de ocupação.
+* XGBoost & Scikit-Survival: Algoritmos de alto desempenho para predição de risco e estimativa de tempo de permanência, capazes de lidar com a complexidade e as especificidades dos dados hospitalares (como dados censurados).
+* SHAP: Ferramenta de interpretabilidade que revela quais fatores (como idade, diagnóstico ou origem) mais pesaram na decisão do modelo, eliminando o efeito "caixa preta" e gerando confiança clínica.
+
+```python
+!pip install xgboost lifelines scikit-survival shap pandas openpyxl
+```
