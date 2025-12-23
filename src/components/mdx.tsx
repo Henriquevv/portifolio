@@ -1,6 +1,8 @@
 import { MDXRemote, MDXRemoteProps } from "next-mdx-remote/rsc";
 import React, { ReactNode } from "react";
 import { slugify as transliterate } from "transliteration";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 import {
   Heading,

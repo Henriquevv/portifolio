@@ -3,6 +3,7 @@ import "@once-ui-system/core/css/tokens.css";
 import "@/resources/custom.css";
 import { Analytics } from "@vercel/analytics/react";
 import classNames from "classnames";
+import "katex/dist/katex.min.css";
 
 import {
   Background,
