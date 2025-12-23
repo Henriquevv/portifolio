@@ -1102,3 +1102,95 @@ Do Dado à Ação (Prescriptive Analytics)
 O grande valor entregue não é o número estatístico em si, mas a diretriz operacional derivada dele:
 * Para o Paciente 1, a recomendação de "Monitoramento Padrão" evita o desperdício de recursos da equipe de gestão de alta com um caso que provavelmente se resolverá sozinho.
 * Para o Paciente 2, o alerta de "Ação Imediata" permite que o Hospital inicie o planejamento da alta (home care, oxigenoterapia, transporte) no Dia 1, evitando que burocracias atrasem a saída do paciente no Dia 23.
+
+### 13. Abrindo a Caixa Preta: O "Porquê" da Decisão
+
+Um dos maiores riscos em Inteligência Artificial é a falta de transparência. Para garantir a confiança da equipe clínica, utilizei a técnica SHAP para auditar o \"raciocínio\" interno do modelo.
+
+Esta análise revela exatamente quanto e como cada variável (Idade, Sinais Vitais, Origem) influenciou a previsão final, permitindo validar se o algoritmo está seguindo a lógica médica correta.
+
+Como ler o "Mapa de Influência" (Beeswarm Plot):
+
+* A Regra de Ouro:
+    * Pontos à DIREITA (Positivos) = Fatores que puxam o tempo de internação para cima (Agravantes).
+    * Pontos à ESQUERDA (Negativos) = Fatores que aceleram a alta (Protetores).
+
+* A Cor Indica a Intensidade:
+    * Vermelho (Alto): Valor alto da variável (ex: Idade avançada).
+    * Azul (Baixo): Valor baixo da variável (ex: Paciente jovem).
+
+Exemplo de Leitura Esperada: Se vermos pontos *vermelhos* (Idade Alta) acumulados no lado *direito* (Aumenta LOS), o modelo aprendeu corretamente que envelhecimento é fator de risco.
+
+
+```python
+import shap
+import matplotlib.pyplot as plt
+
+#RECUPERANDO O MELHOR MODELO DE REGRESSÃO
+if 'melhor_modelo' in locals():
+    pipeline_final = melhor_modelo
+
+    modelo_xgb = pipeline_final.named_steps['model']
+    preprocessor_shap = pipeline_final.named_steps['preprocessor']
+
+    print("Transformando dados de teste para o SHAP...")
+    X_test_transformed = preprocessor_shap.transform(X_test)
+
+
+    feat_num = features_num
+    feat_cat = preprocessor_shap.named_transformers_['cat']['onehot'].get_feature_names_out(features_cat)
+    feat_bin = features_bin
+    feature_names_shap = np.r_[feat_num, feat_cat, feat_bin]
+
+
+    explainer = shap.TreeExplainer(modelo_xgb)
+    shap_values = explainer.shap_values(X_test_transformed)
+
+    plt.figure(figsize=(10, 8))
+    plt.title("Impacto das Variáveis no Tempo de Internação (SHAP)")
+    shap.summary_plot(shap_values, X_test_transformed, feature_names=feature_names_shap, show=False)
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
+
+    if hasattr(modelo_xgb, 'feature_importances_'):
+        importances = modelo_xgb.feature_importances_
+        indices = np.argsort(importances)[::-1][:15]
+
+        plt.barh(range(len(indices)), importances[indices], align='center', color='purple')
+        plt.yticks(range(len(indices)), [feature_names_shap[i] for i in indices])
+        plt.gca().invert_yaxis()
+        plt.title("Top 15 Variáveis Mais Importantes (Feature Importance)")
+        plt.xlabel("Importância Relativa")
+        plt.show()
+
+else:
+    print("'melhor_modelo' não encontrado. Rode a Regressão antes.")
+```
+
+    Transformando dados de teste para o SHAP...
+    
+    
+![png](/images/projects/los/10.png)
+    
+![png](/images/projects/los/11.png)
+    
+
+### Principais Descobertas da Auditoria:
+
+
+#### Fator de Proteção: Origem do Paciente
+O modelo identificou que vir de casa (`ORIGEM_PACIENTE_Residência`) é o maior indicador de alta rápida.
+* Validação: Pacientes que não chegam via SAMU ou transferência tendem a ter menor gravidade basal. O modelo capturou essa lógica operacional perfeitamente.
+
+#### Fatores de Agravamento: Idade e Sazonalidade
+* Demografia: A idade se comportou como um risco linear. Quanto mais idoso (pontos vermelhos), mais o modelo empurra a previsão para a direita (maior estadia).
+* Inverno: O modelo aprendeu sozinho que a estação fria "custa" dias de leito, refletindo a complexidade das doenças respiratórias sem que precisássemos programar essa regra manualmente.
+
+#### Sinais de Alerta: A Fisiologia na Porta
+Variáveis como Frequência Cardíaca e Pressão Arterial aparecem com destaque.
+* Conclusão: O modelo não olha apenas para o "rótulo" da doença (CID), mas para a estabilidade do paciente na triagem. Instabilidade na chegada é um preditor forte de complicações futuras.
+
+Veredito:
+A análise SHAP atesta a sanidade clínica do modelo. Ele não está usando correlações espúrias (coincidências), mas sim reproduzindo padrões fisiopatológicos e operacionais conhecidos, o que é essencial para sua aceitação pelo corpo clínico.
