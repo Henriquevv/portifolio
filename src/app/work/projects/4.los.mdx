@@ -985,12 +985,37 @@ print(f"\nNOTA: Modelos de árvore (Random Forest/XGBoost) tendem a não ser per
 
 A validação cruzada (testes repetidos em 5 cenários diferentes) confirmou a estabilidade da solução. Abaixo, traduzo as métricas estatísticas para o impacto esperado na operação diária do hospital.
 
-| Indicador | Resultado | O que isso significa para a Operação? |
-| :--- | :--- | :--- |
-| Rede de Segurança (Sensibilidade) | 79% | De cada 10 pacientes que *vão* ter longa permanência, o modelo detecta e alerta 8. Isso garante que a maioria dos casos críticos entre no radar precocemente. |
-| Filtro de Eficiência (Especificidade) | 76% | O modelo consegue descartar 3 em cada 4 pacientes de baixo risco automaticamente, poupando a equipe de monitorar casos simples desnecessariamente. |
-| Qualidade Global (AUC-ROC) | 0.83 | O algoritmo tem alta capacidade de distinção. Ele raramente confunde um paciente complexo com um simples, o que gera confiança na equipe médica. |
-| Acerto Geral (Acurácia) | 81% | Em 8 de cada 10 admissões, a previsão do modelo (Se vai ser Longa ou Curta) se concretiza. |
+<table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px', marginBottom: '20px' }}>
+  <thead>
+    <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Indicador</th>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Resultado</th>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>O que isso significa para a Operação?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Rede de Segurança</strong> (Sensibilidade)</td>
+      <td style={{ padding: '12px' }}><strong>79%</strong></td>
+      <td style={{ padding: '12px' }}>De cada 10 pacientes que <em>vão</em> ter longa permanência, o modelo detecta e alerta 8. Isso garante que a maioria dos casos críticos entre no radar precocemente.</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Filtro de Eficiência</strong> (Especificidade)</td>
+      <td style={{ padding: '12px' }}><strong>76%</strong></td>
+      <td style={{ padding: '12px' }}>O modelo consegue descartar 3 em cada 4 pacientes de baixo risco automaticamente, poupando a equipe de monitorar casos simples desnecessariamente.</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Qualidade Global</strong> (AUC-ROC)</td>
+      <td style={{ padding: '12px' }}><strong>0.83</strong></td>
+      <td style={{ padding: '12px' }}>O algoritmo tem alta capacidade de distinção. Ele raramente confunde um paciente complexo com um simples, o que gera confiança na equipe médica.</td>
+    </tr>
+    <tr>
+      <td style={{ padding: '12px' }}><strong>Acerto Geral</strong> (Acurácia)</td>
+      <td style={{ padding: '12px' }}><strong>81%</strong></td>
+      <td style={{ padding: '12px' }}>Em 8 de cada 10 admissões, a previsão do modelo (Se vai ser Longa ou Curta) se concretiza.</td>
+    </tr>
+  </tbody>
+</table>
 
 Veredito:
 O modelo apresenta um perfil equilibrado e seguro. A estratégia adotada priorizou a Sensibilidade (79%) em vez de maximizar cegamente a Acurácia global.
@@ -1066,6 +1091,7 @@ print(">>> SIMULANDO PACIENTE 2 (Idoso, Urgência, Comorbidade):")
 prever_internacao(paciente_longo)
 ```
 
+```text
     >>> SIMULANDO PACIENTE 1 (Jovem, Eletivo):
     ============================================================
     SIMULAÇÃO DE ADMISSÃO HOSPITALAR
@@ -1093,7 +1119,7 @@ prever_internacao(paciente_longo)
     STATUS: 🔴 ALERTA: ALTO RISCO DE LONGA PERMANÊNCIA
     NB: Ação Sugerida: Acionar NIR / Gestão de Leitos imediatamente.
     ============================================================
-    
+```    
     
 
 Análise dos Cenários Simulados:
@@ -1261,7 +1287,8 @@ except Exception as e:
   
     
 ![png](/images/projects/los/12.png)
-    
+
+```text    
 Resumo Estatístico (P-values e HR)
 coef	exp(coef)	se(coef)	coef lower 95%	coef upper 95%	exp(coef) lower 95%	exp(coef) upper 95%	cmp to	z	p	-log2(p)
 covariate											
@@ -1281,7 +1308,7 @@ CID_CAPITULO_C	0.220495	1.246694	0.071473	0.080411	0.360579	1.083733	1.434160	0.
 CID_CAPITULO_K	0.224078	1.251169	0.040613	0.144478	0.303679	1.155436	1.354833	0.0	5.517370	3.441098e-08	24.792556
 CID_CAPITULO_T	0.291023	1.337795	0.039628	0.213353	0.368692	1.237821	1.445843	0.0	7.343838	2.075551e-13	42.131571
 CID_CAPITULO_V	1.074740	2.929232	0.238298	0.607684	1.541796	1.836175	4.672975	0.0	4.510066	6.480754e-06	17.235407
-    
+```    
 
 
 
