@@ -14,6 +14,14 @@ export default function GoogleTranslate() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // detecta idioma do navegador
+    const browserLang = navigator.language || navigator.languages?.[0] || "pt";
+    const isEnglish = browserLang.toLowerCase().startsWith("en");
+
+    if (isEnglish) {
+      setCurrentLang("EN");
+    }
+
     // injeta CSS para esconder o banner do Google
     const style = document.createElement("style");
     style.innerHTML = `
@@ -29,7 +37,23 @@ export default function GoogleTranslate() {
         { pageLanguage: "pt", includedLanguages: "en,pt", autoDisplay: false },
         "google_translate_element"
       );
+
+      // após o widget carregar, auto-traduz se navegador for EN
+      if (isEnglish) {
+        const tryAutoTranslate = setInterval(() => {
+          const select = document.querySelector<HTMLSelectElement>(".goog-te-combo");
+          if (select) {
+            select.value = "en";
+            select.dispatchEvent(new Event("change"));
+            clearInterval(tryAutoTranslate);
+          }
+        }, 200);
+
+        // segurança: para de tentar após 5s
+        setTimeout(() => clearInterval(tryAutoTranslate), 5000);
+      }
     };
+
     const script = document.createElement("script");
     script.src =
       "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
