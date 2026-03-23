@@ -4,6 +4,7 @@ import "@/resources/custom.css";
 import { Analytics } from "@vercel/analytics/react";
 import classNames from "classnames";
 import "katex/dist/katex.min.css";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 import {
   Background,
@@ -36,7 +37,7 @@ export default async function RootLayout({
     <Flex
       suppressHydrationWarning
       as="html"
-      lang="en"
+      lang="pt-BR"
       fillWidth
       className={classNames(
         fonts.heading.variable,
@@ -114,6 +115,7 @@ export default async function RootLayout({
           padding="0"
           horizontal="center"
         >
+          <GoogleTranslate />
           <RevealFx fill position="absolute">
             <Background
               mask={{
