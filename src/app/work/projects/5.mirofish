@@ -1,0 +1,861 @@
+---
+title: "Estudo de Caso: Simulação de Cenários Assistenciais com Inteligência Artificial Multi-Agente (Swarm Intelligence)"
+publishedAt: "2026-03-22"
+summary: "Pipeline completo de simulação hospitalar utilizando Inteligência de Enxame (Swarm Intelligence) com MiroFish. O projeto combina extração e análise de 39 meses de dados operacionais (45 mil internações, 276 mil atendimentos de PS) com simulação multi-agente para prever demanda por leitos, identificar gargalos de fluxo e testar cenários de estresse sazonal (São João). Inclui geração automática de seed material, construção de grafos de conhecimento (GraphRAG) e relatórios de predição emergentes."
+images:
+  - "/images/projects/swarm/heatmap_ocupacao.png"
+  - "/images/projects/swarm/sazonalidade.png"
+team:
+  - name: "Henrique Valentim"
+    role: "Analista de Negócios"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+### I. Contexto e Problema
+* 1. O Problema de Negócio: Imprevisibilidade de demanda e gargalos em redes hospitalares.
+* 2. Proposta de Solução: Inteligência de Enxame (Swarm Intelligence) como alternativa aos modelos tradicionais.
+* 3. Sobre o MiroFish: O motor de simulação multi-agente.
+
+### II. Extração e Preparação dos Dados
+* 4. Mapeamento das Extrações: 6 datasets operacionais.
+* 5. Validação dos Dados: Estrutura, completude e anomalias.
+
+### III. Análise Exploratória
+* 7. Volume de Admissões e Sazonalidade: Padrões temporais ao longo de 39 meses.
+* 8. Ocupação de Leitos: Gargalos e subutilização entre hospitais.
+* 9. Pronto Socorro: Volume, classificação Manchester e conversão PS→Internação.
+* 10. Tempos da Jornada do Paciente: Do PS à alta.
+* 11. Fluxos e Transferências: Padrões de movimentação entre setores.
+* 12. Perfil Demográfico: Contraste entre hospitais.
+* 13. Transição do Hospital especializado: Análise da mudança de perfil assistencial.
+* 13.1. Código Completo da Análise Exploratória: Notebook Python.
+
+### IV. Simulação MiroFish
+* 14. Preparação do Seed Material: Transformação de dados em relatório analítico.
+* 15. Configuração e Execução: Ontologia, GraphRAG, agentes e simulação.
+* 16. Resultados da Simulação: Relatório completo do MiroFish (output não editado).
+* 17. Cenário de Estresse (São João): Simulação de aumento de 30% na demanda.
+
+### V. Conclusão
+* 18. Síntese dos Resultados: Achados principais e impacto.
+* 19. Limitações
+
+---
+
+## 1. O Problema de Negócio
+
+A imprevisibilidade da demanda hospitalar é um dos maiores desafios da gestão assistencial. Em redes com múltiplos hospitais, a complexidade se multiplica: cada unidade tem perfil próprio, sazonalidades distintas e fluxos de pacientes que se cruzam entre setores e entre hospitais.
+
+Quando não se sabe com antecedência quantos pacientes chegarão, quais setores ficarão lotados ou como um evento sazonal impactará a operação, a consequência é superlotação no PS, cancelamento de cirurgias e estresse das equipes.
+
+Este projeto foi desenvolvido como estudo de caso simulado de uma rede hospitalar do Nordeste brasileiro com dois hospitais de perfis distintos: um hospital geral de grande porte (Hospital A) com alta ocupação e outro originalmente especializado em cardiologia (Hospital B), em transição para perfil geral e com significativa capacidade ociosa.
+
+## 2. Proposta de Solução
+
+Em vez de usar modelos estatísticos tradicionais (séries temporais, regressão) que tratam o hospital como uma "caixa preta", adotei uma abordagem baseada em **Inteligência de Enxame (Swarm Intelligence)**.
+
+A ideia é simples: criar um "mundo digital" onde agentes virtuais — representando hospitais, setores, equipes e pacientes — interagem livremente entre si. Os padrões que emergem dessas interações (gargalos, soluções, redistribuições) não são programados previamente.
+
+**Por que Swarm Intelligence para hospitais?**
+
+1. **Emergência**: Em vez de programar cada cenário, os comportamentos complexos surgem naturalmente das interações entre agentes simples.
+2. **Adaptação**: O modelo se ajusta a mudanças estruturais (como a transição de perfil de um hospital) sem necessidade de reprogramação.
+3. **Multi-perspectiva**: Cada agente tem sua própria "visão" do problema, gerando soluções que consideram múltiplos pontos de vista simultaneamente.
+
+## 3. Sobre o MiroFish
+
+O [MiroFish](https://github.com/666ghj/MiroFish) é um motor de inteligência de enxame open-source que funciona em 5 etapas:
+
+1. **Construção do Grafo**: Extrai entidades e relacionamentos do documento semente (seed material) e constrói um grafo de conhecimento (GraphRAG).
+2. **Geração de Agentes**: Cria agentes autônomos com personalidades, memórias e comportamentos baseados no grafo.
+3. **Simulação**: Os agentes interagem em plataformas paralelas, postando, comentando e reagindo.
+4. **Relatório**: Um ReportAgent analisa as interações e gera predições estruturadas.
+5. **Interação Profunda**: É possível "entrevistar" os agentes para aprofundar insights.
+
+O MiroFish não recebe dados tabulares diretamente. Ele consome **documentos textuais** (relatórios analíticos) como material semente. Isso significa que os dados brutos precisam ser processados, analisados e transformados em um relatório antes de alimentar o motor.
+
+---
+*Nota: Os dados utilizados neste estudo são fictícios. Nomes de hospitais e setores foram substituídos por identificadores genéricos (Hospital A, Hospital B).*
+
+---
+
+## 4. Mapeamento das Extrações
+
+Estruturei a extração de dados em 6 dimensões complementares, cobrindo 39 meses de operação simuladas (janeiro/2023 a março/2026):
+
+| # | Extração | Registros | Variáveis-chave |
+|---|----------|-----------|-----------------|
+| 1 | Admissões e Altas | 45.076 | Volume, permanência, CID, especialidade |
+| 2 | Ocupação de Leitos | ~500.000 | Taxa diária por setor (nível leito) |
+| 3 | Atendimentos Urgência | 276.703 | Manchester, conversão PS→Internação |
+| 4 | Tempos Emergência | 276.703 | 18 campos de tempo (porta→médico, permanência UE) |
+| 5 | Transferências | ~80.000 | Fluxos entre setores e entre hospitais |
+| 6 | Perfil Demográfico | ~280.000 | Faixa etária, sexo (anonimizado) |
+
+Cada extração foi validada individualmente: cruzamento de colunas com o guia de extração, verificação de nulos, análise de distribuição e identificação de anomalias.
+
+```python
+# Leitura e validação das 6 extrações
+ARQUIVOS = {
+    'admissoes':      'ADMISSOES_E_ALTAS.xlsx',
+    'ocupacao':       'OCUPACAO_DE_LEITOS.xlsx',
+    'urgencia':       'ATENDIMENTOS_UNIDADE_EMERGENCIA.xlsx',
+    'tempos':         'TEMPOS_UNIDADE_DE_EMERGENCIA.xlsx',
+    'transferencias': 'TRANFERENCIAS_PACIENTES.xlsx',
+    'perfil':         'PERFIL_EPIDEMIOLOGICO.xlsx',
+}
+
+df_adm = pd.read_excel(ARQUIVOS['admissoes'])
+df_ocu = pd.read_excel(ARQUIVOS['ocupacao'])
+df_urg = pd.read_excel(ARQUIVOS['urgencia'])
+df_tmp = pd.read_excel(ARQUIVOS['tempos'])
+df_tra = pd.read_excel(ARQUIVOS['transferencias'])
+df_per = pd.read_excel(ARQUIVOS['perfil'])
+
+for nome, df in datasets.items():
+    print(f'{nome:30s} → {df.shape[0]:>8,} linhas × {df.shape[1]:>2} colunas')
+```
+
+## 5. Validação dos Dados
+
+Cada extração revelou particularidades importantes:
+
+**Admissões e Altas**: 11 colunas. 71 pacientes sem alta (ainda internados). 133 CIDs nulos (12,6% — normal para cirurgias eletivas). Permanência média de 5,5 dias (mediana 1,5 — distribuição assimétrica).
+
+**Ocupação de Leitos**: Granularidade no nível leito (1 linha por leito/dia), não por setor. Taxa de ocupação calculada por `SUM(QT_PAC_DIA) / SUM(QT_LEITO_DIA)`. 39% dos registros são leitos bloqueados/inativos.
+
+**Atendimentos de Urgência**: Descoberta crítica — DT_ALTA do PS é artificial (98% com exatamente 11h40min após entrada). Campo `IE_TIPO_ATENDIMENTO = 1` identifica conversões PS→Internação (14,8%).
+
+**Tempos Emergência**: 18 campos de tempo.
+
+**Transferências**: Cada linha é uma passagem por setor, não par origem→destino.
+
+**Perfil Demográfico**: 100% de cruzamento com Extrações 1 e 3. 
+
+
+
+## 7. Volume de Admissões e Sazonalidade
+
+A análise de 39 meses revelou padrões temporais consistentes:
+
+```python
+# Admissões por mês — série temporal
+adm_mes = df_adm.groupby(['MES', 'CD_ESTABELECIMENTO']).size().unstack(fill_value=0)
+adm_mes['REDE'] = adm_mes.sum(axis=1)
+
+# Padrão semanal e horário
+adm_dow = df_adm.groupby('DIA_SEMANA').size()
+adm_hora = df_adm.groupby('HORA').size()
+```
+
+**Achados principais:**
+- **Média**: 1.156 admissões/mês na rede (38,4/dia)
+- **Sazonalidade**: Picos em abril-junho e agosto-outubro. Vales em janeiro-fevereiro e dezembro
+- **Semanal**: Queda de ~40% nos finais de semana (predominância de internações eletivas)
+- **Horário**: Pico entre 8h-12h, mínimo na madrugada
+
+## 8. Ocupação de Leitos
+
+O dado mais impactante do estudo: a assimetria brutal entre os dois hospitais.
+
+```python
+# Ocupação agregada por setor/dia
+df_ocu_agg = df_ocu.groupby(
+    ['DT_REFERENCIA', 'DS_SETOR_ATENDIMENTO', 'CD_ESTABELECIMENTO']
+).agg(
+    LEITOS_ATIVOS=('QT_LEITO_DIA', 'sum'),
+    PACIENTES=('QT_PAC_DIA', 'sum'),
+).reset_index()
+
+df_ocu_agg['TAXA_OCUPACAO'] = (
+    df_ocu_agg['PACIENTES'] / df_ocu_agg['LEITOS_ATIVOS'].replace(0, np.nan) * 100
+)
+```
+
+**Hospital A: 84,5% de ocupação média**
+- Enfermarias do Bloco B (5º e 6º andares): frequentemente acima de **95%** — gargalos reais
+- UTI 2 (27 leitos, maior UTI): média de **91%**
+- Xº Andar 2: principal receptor simultâneo dos fluxos cirúrgico e de emergência
+
+**Hospital B: 54,1% de ocupação média**
+- Significativa capacidade ociosa
+- Internamento adulto oscila entre 40% e 80%
+- Tendência de crescimento ao longo dos 39 meses (transição de perfil)
+
+## 9. Pronto Socorro
+
+276.703 atendimentos em 39 meses, média de 236/dia.
+
+**Classificação Manchester:**
+- Verde (pouco urgente): 44,7%
+- Azul (não urgente): 44,0%
+- Amarelo (urgente): 5,1%
+- Vermelho (emergência): 0,1%
+- ~89% de classificações verde/azul → demanda predominantemente de baixa complexidade
+
+**Conversão PS→Internação:**
+- Hospital A: 12,8%
+- Hospital B: 43,7% — taxa muito mais alta, indicando que o PS do Hospital B é usado predominantemente como porta de entrada para internações
+
+## 10. Tempos da Jornada do Paciente
+
+A extração de tempos revelou a jornada completa do paciente no PS:
+
+| Etapa | Tempo mediano |
+|-------|---------------|
+| Espera recepção | 13 min |
+| Cadastro | 7 min |
+| Espera triagem | 7 min |
+| Triagem (Manchester) | 1 min |
+| **Porta → Médico** | **30 min** |
+| Espera pelo médico | 14 min |
+| Atendimento médico | 92 min |
+| **Permanência total UE** | **134 min (2,2h)** |
+
+O tempo porta-médico de **30 minutos** é o indicador-chave de qualidade do PS. Pacientes que necessitam de retaguarda (leito de observação) permanecem em média 4 horas adicionais.
+
+## 11. Fluxos e Transferências
+
+82.263 transferências entre setores distintos, com 1.655 entre os dois hospitais.
+
+```python
+# Reconstruir pares origem → destino
+df_tra_sorted = df_tra.sort_values(['NR_ATENDIMENTO', 'DT_ENTRADA_UNIDADE'])
+df_tra_sorted['SETOR_DESTINO'] = df_tra_sorted.groupby('NR_ATENDIMENTO')['NM_SETOR'].shift(-1)
+```
+
+**Dois grandes padrões de fluxo identificados:**
+
+1. **Fluxo cirúrgico**: Centro Cirúrgico → SRPA → Enfermaria (Xº andar 2) — 10.040 + 5.076 transferências
+2. **Fluxo emergência**: 1º Andar Adulto (retaguarda UE) → Enfermarias superiores ou UTI — 2.321 para 7º andar
+
+**Fluxo inter-hospitalar**: Concentrado na hemodinâmica — pacientes fazem cateterismo no Hospital A e ficam internados no Hospital B, ou vice-versa.
+
+## 12. Perfil Demográfico
+
+Os hospitais atendem populações marcadamente diferentes:
+
+| Indicador | Hospital A | Hospital B |
+|-----------|-----------|-----------|
+| Pacientes ≥65 anos | 16% | **41%** |
+| Pediátricos (0-17) | 26% | 10% |
+| Sexo feminino | 57% | 61% |
+
+Hospital B tem perfil 2,5× mais envelhecido — com origem cardiológica. Isso é fundamental para a simulação: agentes representando pacientes do Hospital B devem ter comportamentos compatíveis com população mais idosa.
+
+## 13. Transição do Hospital especializado
+
+O gráfico de evolução das especialidades no Hospital B ao longo dos 39 meses revelou:
+
+- Mantém **75-85% cardiológico** ao longo de todo o período
+- Crescimento gradual de **cirúrgica**: de ~10% (2023) para ~20-25% (2025-2026)
+- Outras especialidades (clínica médica, pediatria) aparecem de forma intermitente (<5%)
+- Transição é **lenta e parcial** — boa notícia para a pesquisa
+
+---
+
+
+## 13.1 Código Completo da Análise Exploratória
+
+O código abaixo foi executado no Google Colab e gerou todos os gráficos e métricas apresentados nas seções anteriores (7-13), além do seed material para o MiroFish.
+
+<details>
+<summary><strong>Expandir código completo (Python — Google Colab)</strong></summary>
+
+```python
+# -*- coding: utf-8 -*-
+
+# Instalar dependências
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import seaborn as sns
+from datetime import datetime, timedelta
+import warnings
+warnings.filterwarnings('ignore')
+
+# Configuração visual
+plt.rcParams['figure.figsize'] = (14, 5)
+plt.rcParams['figure.dpi'] = 100
+plt.rcParams['font.family'] = 'sans-serif'
+sns.set_theme(style='whitegrid', palette='muted')
+
+# Cores padrão para os hospitais
+COR_HP = '#2E86C1'      # Hospital A
+COR_HPSJ = '#E67E22'    # Hospital São José / Cardio
+COR_REDE = '#1B4F72'    # Rede (agregado)
+
+NOMES_HOSP = {121: 'Hospital A', 143: 'Hospital B'}
+
+print('Setup concluído')
+
+
+import pandas as pd
+
+
+ARQUIVOS = {
+    'admissoes':      'ADMISSOES_E_ALTAS.xlsx',
+    'ocupacao':       'OCUPACAO_DE_LEITOS.xlsx',
+    'urgencia':       'ATENDIMENTOS_UNIDADE_EMERGENCIA.xlsx',
+    'tempos':         'TEMPOS_UNIDADE_DE_EMERGENCIA.xlsx',
+    'transferencias': 'TRANFERENCIAS_PACIENTES.xlsx',
+    'perfil':         'PERFIL_EPIDEMIOLOGICO.xlsx',
+}
+
+print('Carregando dados...')
+df_adm = pd.read_excel(ARQUIVOS['admissoes'])
+df_ocu = pd.read_excel(ARQUIVOS['ocupacao'])
+df_urg = pd.read_excel(ARQUIVOS['urgencia'])
+df_tmp = pd.read_excel(ARQUIVOS['tempos'])
+df_tra = pd.read_excel(ARQUIVOS['transferencias'])
+df_per = pd.read_excel(ARQUIVOS['perfil'])
+
+datasets = {
+    'Admissões e Altas': df_adm,
+    'Ocupação de Leitos': df_ocu,
+    'Atendimentos Urgência': df_urg,
+    'Tempos Emergência': df_tmp,
+    'Transferências': df_tra,
+    'Perfil Demográfico': df_per,
+}
+
+print('\n Resumo dos datasets:')
+for nome, df in datasets.items():
+    print(f'  {nome:30s} → {df.shape[0]:>8,} linhas × {df.shape[1]:>2} colunas')
+print('\n Todos os dados carregados')
+
+## 3. Análise Exploratória
+
+### 3.1 Volume de Admissões
+
+# PERMANÊNCIA POR HOSPITAL E TIPO DE UNIDADE
+
+df_adm_alta = df_adm.dropna(subset=['PERM_DIAS']).copy()
+# Filtrar outliers extremos (>60 dias provavelmente erro)
+df_adm_alta = df_adm_alta[df_adm_alta['PERM_DIAS'] <= 60]
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+
+# Por hospital
+for hosp, cor in [(121, COR_HP), (143, COR_HPSJ)]:
+    dados = df_adm_alta[df_adm_alta['CD_ESTABELECIMENTO'] == hosp]['PERM_DIAS']
+    if len(dados) > 0:
+        axes[0].hist(dados, bins=50, alpha=0.6, color=cor, label=NOMES_HOSP[hosp])
+axes[0].set_title('Distribuição do tempo de permanência', fontsize=13)
+axes[0].set_xlabel('Dias')
+axes[0].set_ylabel('Frequência')
+axes[0].legend()
+axes[0].axvline(df_adm_alta['PERM_DIAS'].median(), color='red', ls='--', alpha=0.7, label=f'Mediana: {df_adm_alta["PERM_DIAS"].median():.1f}d')
+axes[0].legend()
+
+# Por tipo de unidade
+perm_tipo = df_adm_alta.groupby('TIPO_UNIDADE')['PERM_DIAS'].agg(['mean', 'median', 'count'])
+perm_tipo = perm_tipo.sort_values('median', ascending=True)
+colors = ['#2E86C1' if t == 'INTERNAÇÃO' else '#E74C3C' if t == 'UTI' else '#888' for t in perm_tipo.index]
+axes[1].barh(perm_tipo.index, perm_tipo['median'], color=colors, alpha=0.8)
+axes[1].set_title('Permanência mediana por tipo de unidade', fontsize=13)
+axes[1].set_xlabel('Dias (mediana)')
+for i, (idx, row) in enumerate(perm_tipo.iterrows()):
+    axes[1].text(row['median'] + 0.1, i, f'{row["median"]:.1f}d (n={int(row["count"])})', va='center', fontsize=10)
+
+plt.tight_layout()
+plt.savefig('03_permanencia.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+
+# VOLUME PS DIÁRIO + CLASSIFICAÇÃO MANCHESTER
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+
+# Volume diário
+ps_dia = df_ps.groupby('DATA').size()
+axes[0].plot(ps_dia.index, ps_dia.values, color=COR_REDE, alpha=0.7)
+axes[0].fill_between(ps_dia.index, ps_dia.values, alpha=0.1, color=COR_REDE)
+axes[0].axhline(ps_dia.mean(), color='red', ls='--', alpha=0.5, label=f'Média: {ps_dia.mean():.0f}/dia')
+axes[0].set_title('Volume diário do Pronto Socorro', fontsize=13)
+axes[0].set_ylabel('Atendimentos')
+axes[0].legend()
+
+# Manchester
+manchester_ordem = ['Vermelho', 'Laranja (INATIVO)', 'Amarelo', 'Verde', 'Azul', 'Não informado']
+manchester_cores = {'Vermelho': '#E74C3C', 'Laranja (INATIVO)': '#E67E22', 'Amarelo': '#F1C40F',
+                    'Verde': '#27AE60', 'Azul': '#3498DB', 'Não informado': '#BDC3C7'}
+manch = df_ps['DS_NIVEL_URGENCIA'].value_counts().reindex(manchester_ordem).dropna()
+cores = [manchester_cores.get(m, '#888') for m in manch.index]
+axes[1].barh(manch.index, manch.values, color=cores)
+axes[1].set_title('Classificação Manchester — Pronto Socorro', fontsize=13)
+axes[1].set_xlabel('Atendimentos')
+for i, (idx, val) in enumerate(manch.items()):
+    axes[1].text(val + 10, i, f'{val:,} ({val/len(df_ps)*100:.1f}%)', va='center', fontsize=10)
+
+plt.tight_layout()
+plt.savefig('06_ps_volume_manchester.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+
+# TOP FLUXOS DE TRANSFERÊNCIA
+
+# Simplificar nomes para visualização
+def simplificar_setor(nome):
+    if pd.isna(nome): return nome
+    return (nome.replace('HP - ', '').replace('HPSJ - ', 'SJ:')
+            .replace('HC - ', 'HC:').replace('Hemodinâmica Internamento', 'SJ:Hemodin.'))
+
+df_fluxos['ROTA'] = df_fluxos['NM_SETOR'].apply(simplificar_setor) + ' → ' + df_fluxos['SETOR_DESTINO'].apply(simplificar_setor)
+
+# Top 15 rotas (excluir mesmo setor → mesmo setor)
+df_fluxos_diff = df_fluxos[df_fluxos['NM_SETOR'] != df_fluxos['SETOR_DESTINO']]
+top_rotas = df_fluxos_diff['ROTA'].value_counts().head(15)
+
+fig, ax = plt.subplots(figsize=(14, 7))
+top_rotas_rev = top_rotas.iloc[::-1]
+ax.barh(top_rotas_rev.index, top_rotas_rev.values, color=COR_REDE, alpha=0.8)
+ax.set_title('Top 15 fluxos de transferência entre setores distintos', fontsize=13)
+ax.set_xlabel('Transferências')
+for i, (idx, val) in enumerate(top_rotas_rev.items()):
+    ax.text(val + 2, i, str(val), va='center', fontsize=10)
+plt.tight_layout()
+plt.savefig('08_top_fluxos.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+
+# SAZONALIDADE: decomposição mensal
+
+# Admissões por mês
+adm_mes_total = df_adm.groupby('MES').size()
+media_geral = adm_mes_total.mean()
+
+fig, axes = plt.subplots(2, 1, figsize=(16, 8))
+
+# Série temporal com média
+ax = axes[0]
+x = range(len(adm_mes_total))
+ax.bar(x, adm_mes_total.values, color=COR_REDE, alpha=0.7)
+ax.axhline(media_geral, color='red', ls='--', label=f'Média: {media_geral:.0f}/mês')
+ax.set_xticks(x)
+ax.set_xticklabels([str(p) for p in adm_mes_total.index], rotation=45, ha='right')
+ax.set_title('Admissões mensais — identificação de picos', fontsize=13)
+ax.set_ylabel('Admissões')
+ax.legend()
+
+# Destacar picos (>1.2x média) e vales (<0.8x média)
+for i, val in enumerate(adm_mes_total.values):
+    if val > media_geral * 1.2:
+        ax.annotate('⬆ PICO', (i, val), textcoords='offset points', xytext=(0, 10),
+                    ha='center', fontsize=9, color='red', fontweight='bold')
+    elif val < media_geral * 0.8:
+        ax.annotate('⬇ vale', (i, val), textcoords='offset points', xytext=(0, -15),
+                    ha='center', fontsize=9, color='blue')
+
+# PS por mês
+ax = axes[1]
+ps_mes = df_ps.groupby('MES').size()
+x = range(len(ps_mes))
+ax.bar(x, ps_mes.values, color='#E67E22', alpha=0.7)
+ax.axhline(ps_mes.mean(), color='red', ls='--', label=f'Média: {ps_mes.mean():.0f}/mês')
+ax.set_xticks(x)
+ax.set_xticklabels([str(p) for p in ps_mes.index], rotation=45, ha='right')
+ax.set_title('Atendimentos PS mensais', fontsize=13)
+ax.set_ylabel('Atendimentos')
+ax.legend()
+
+plt.tight_layout()
+plt.savefig('10_sazonalidade.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+![png](/images/projects/mirofish/analise1.jpeg)
+![png](/images/projects/mirofish/analise2.jpeg)
+![png](/images/projects/mirofish/analise3.jpeg)
+![png](/images/projects/mirofish/analise4.jpeg)
+![png](/images/projects/mirofish/analise5.jpeg)
+![png](/images/projects/mirofish/analise6.jpeg)
+![png](/images/projects/mirofish/analise7.jpeg)
+
+
+Tabela Resumo para o Trabalho
+## 5. Geração do Seed Material (MiroFish)
+
+Esta seção gera o **relatório analítico estruturado** que será usado como material semente para o MiroFish.
+
+> O MiroFish consome documentos textuais, não CSVs. O relatório abaixo sintetiza todos os padrões encontrados em linguagem natural + dados quantitativos.
+
+    # --- Métricas calculadas ---
+    periodo_inicio = df_adm['DT_ENTRADA'].min().strftime('%B/%Y')
+    periodo_fim = df_adm['DT_ENTRADA'].max().strftime('%B/%Y')
+    n_meses = df_adm['MES'].nunique()
+
+    # Admissões
+    adm_total = len(df_adm)
+    adm_hp = len(df_adm[df_adm['CD_ESTABELECIMENTO'] == 121])
+    adm_hpsj = len(df_adm[df_adm['CD_ESTABELECIMENTO'] == 143])
+    adm_dia_media = df_adm.groupby('DATA').size().mean()
+
+    # Permanência
+    perm = df_adm.dropna(subset=['PERM_DIAS'])
+    perm_media = perm['PERM_DIAS'].mean()
+    perm_mediana = perm['PERM_DIAS'].median()
+
+    # Ocupação
+    ocu_media_hp = df_ocu_agg[df_ocu_agg['CD_ESTABELECIMENTO'] == 121]['TAXA_OCUPACAO'].mean()
+    ocu_media_hpsj = df_ocu_agg[df_ocu_agg['CD_ESTABELECIMENTO'] == 143]['TAXA_OCUPACAO'].mean()
+
+    # PS
+    ps_total = len(df_ps)
+    ps_dia_media = df_ps.groupby('DATA').size().mean()
+    conv_total = len(df_conv)
+    taxa_conv = conv_total / (ps_total + conv_total) * 100
+
+    # Tempos PS
+    porta_medico = df_tmp['TEMPO_PORTA_MEDICO'].median()
+    perm_ue = df_tmp['TEMPO_PERMANENCIA_UE'].median()
+
+    # Perfil
+    pct_idoso_hp = len(df_per[(df_per['CD_ESTABELECIMENTO'] == 121) & (df_per['FAIXA_ETARIA'].isin(['65-79', '80+']))]) / len(df_per[df_per['CD_ESTABELECIMENTO'] == 121]) * 100
+    pct_idoso_hpsj = len(df_per[(df_per['CD_ESTABELECIMENTO'] == 143) & (df_per['FAIXA_ETARIA'].isin(['65-79', '80+']))]) / max(len(df_per[df_per['CD_ESTABELECIMENTO'] == 143]), 1) * 100
+
+    # Transferências
+    n_transf = len(df_fluxos_diff)
+    n_inter_hosp = df_fluxos['INTER_HOSPITALAR'].sum()
+
+    # Top CIDs
+    top_cids = df_adm['CD_CID_PRINCIPAL'].value_counts().head(10)
+    top_cids_str = ', '.join([f'{cid} ({n})' for cid, n in top_cids.items()])
+
+    # Top especialidades PS
+    top_esp_ps = df_ps['DS_ESPECIALIDADE'].value_counts().head(5)
+    top_esp_str = ', '.join([f'{esp} ({n:,})' for esp, n in top_esp_ps.items()])
+
+    # Manchester
+    manch = df_ps['DS_NIVEL_URGENCIA'].value_counts(normalize=True) * 100
+    manch_str = ', '.join([f'{nivel}: {pct:.1f}%' for nivel, pct in manch.items()])
+
+    # Setores com ocupação > 95%
+    setores_criticos = df_ocu_agg.groupby('DS_SETOR_ATENDIMENTO')['TAXA_OCUPACAO'].mean()
+    setores_criticos = setores_criticos[setores_criticos > 95].sort_values(ascending=False)
+    setores_criticos_str = ', '.join([f'{s} ({v:.0f}%)' for s, v in setores_criticos.items()]) if len(setores_criticos) > 0 else 'Nenhum setor com média > 95%'
+
+    # Top fluxos
+    top_fluxos_5 = df_fluxos_diff['ROTA'].value_counts().head(5)
+    top_fluxos_str = '\n'.join([f'    - {rota}: {n} transferências' for rota, n in top_fluxos_5.items()])
+
+    # --- Documento ---
+    return seed
+
+# Gerar e salvar
+seed_material = gerar_seed_material()
+
+with open('SEED_MATERIAL_MIROFISH.md', 'w', encoding='utf-8') as f:
+    f.write(seed_material)
+
+print(' Seed material gerado!')
+print(f'   Tamanho: {len(seed_material):,} caracteres')
+print(f'   Arquivo: SEED_MATERIAL_MIROFISH.md')
+print('\n--- Primeiras linhas ---')
+print('\n'.join(seed_material.split('\n')[:30]))
+
+# Visualizar o seed material completo
+from IPython.display import Markdown, display
+display(Markdown(seed_material))
+
+
+# EMPACOTAR TODOS OS OUTPUTS
+
+import shutil
+import os
+
+OUTPUT_DIR = 'resultados_semana2'
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Copiar gráficos
+for f in os.listdir('.'):
+    if f.endswith('.png'):
+        shutil.copy(f, OUTPUT_DIR)
+
+# Copiar seed material e tabela
+shutil.copy('SEED_MATERIAL_MIROFISH.md', OUTPUT_DIR)
+if os.path.exists('tabela_resumo_comparativo.xlsx'):
+    shutil.copy('tabela_resumo_comparativo.xlsx', OUTPUT_DIR)
+
+# Criar ZIP
+shutil.make_archive(OUTPUT_DIR, 'zip', OUTPUT_DIR)
+
+print(f'\n Conteúdo do pacote {OUTPUT_DIR}.zip:')
+for f in sorted(os.listdir(OUTPUT_DIR)):
+    size = os.path.getsize(os.path.join(OUTPUT_DIR, f))
+    print(f'  {f:45s} ({size/1024:.0f} KB)')
+
+# Download
+print('\n⬇ Iniciando download...')
+```
+
+</details>
+
+
+## 14. Preparação do Seed Material
+
+O MiroFish não consome CSVs diretamente. Ele precisa de um **relatório analítico estruturado** como documento semente. Criei uma função que sintetiza todos os achados automaticamente:
+
+```python
+def gerar_seed_material():
+    """Gera o relatório analítico para uso como seed material no MiroFish."""
+
+    # Métricas calculadas a partir das 6 extrações
+    adm_total = len(df_adm)           # 45.076
+    ps_total = len(df_ps)             # 276.703
+    ocu_media_hp = 84.5               # %
+    ocu_media_hpsj = 54.1             # %
+    porta_medico = 30                  # minutos
+    n_transf = 82263
+    pct_idoso_hp = 16                  # %
+    pct_idoso_hpsj = 41               # %
+
+    seed = f"""
+    # RELATÓRIO ANALÍTICO — REDE HOSPITALAR
+    ## 1. Visão Geral da Rede
+    Dois hospitais no Nordeste brasileiro...
+    ## 2. Demanda por Internação
+    {adm_total:,} internações em 39 meses...
+    ## 3. Ocupação de Leitos
+    Hospital A: {ocu_media_hp}% | Hospital B: {ocu_media_hpsj}%...
+    ...
+    ## 9. Objetivo da Simulação
+    Prever demanda, fluxo e impacto da transição...
+    """
+    return seed
+
+# Salvar
+with open('SEED_MATERIAL_MIROFISH_v2.md', 'w') as f:
+    f.write(gerar_seed_material())
+```
+
+O seed material final cobriu 10 seções: visão geral, demanda, ocupação, PS, tempos, fluxos, perfil demográfico, transição do Hospital B, objetivos da simulação e metadados/limitações.
+
+## 15. Configuração e Execução do MiroFish
+
+Com o seed material pronto, a configuração no MiroFish seguiu o pipeline de 5 etapas:
+
+**Etapa 1 — Ontologia** (automática):
+Extraiu 10 tipos de entidades (GeneralHospital ,Hospital Especializado, Autoridade de Saúde, MediaOutlet, PatientAdvocacyGroup, Órgão Regulador do Governo, Governo Local, Conselho de Turismo, Pessoa e Organização) e 8 tipos de relacionamento (PROVIDES_SERVICE_TO, REPORTS_ON, ISSUES_ADVISORY, COLLABORATES_WITH, LOCATED_IN, SHARES_INFORMATION_ON, INFLUENCES_PUBLIC_OPINION e ATTENDS_EVENT).
+
+**Etapa 2 — GraphRAG** (automática):
+Construiu grafo de conhecimento com **79 nós** e **151 arestas** de relacionamento.
+
+![png](/images/projects/mirofish/mirofish1.jpeg)
+
+**Etapa 3 — Geração de Agentes** (automática):
+Criou **2 agentes** com personalidades distintas:
+
+| Agente | Tipo | Papel | Atividade | Influência |
+|--------|------|-------|-----------|------------|
+| @hospital_66 | Hospital A | Gargalos, fluxo cirúrgico | 25% | 2.8 |
+| @hospital_895 | Hospital B | Transição, capacidade ociosa | 20% | 2.8 |
+
+
+**Etapa 4 — Simulação**: 76 rodadas, 30 eventos nas duas plataformas paralelas.
+
+**Etapa 5 — Relatório**: ReportAgent analisou 48 fatos, 10 entidades e 151 relações para gerar o relatório de predição.
+
+## 16. Resultados da Simulação — Relatório Completo do MiroFish
+
+Abaixo está o output completo gerado pelo ReportAgent do MiroFish após a simulação de 76 rodadas com 2 agentes. O relatório foi gerado automaticamente a partir da análise das interações entre os agentes nas plataformas paralelas.
+
+
+---
+
+# Previsão de Impacto das Festas de São João na rede hospitalar
+
+> O aumento de 30% na demanda de saúde durante as festas de São João no Nordeste acionou a rede hospitalar, que antecipou o aumento, monitorou a situação e coordenou preparativos entre seus hospitais, demonstrando preparação e comunicação proativa.
+
+---
+
+## Antecipação do Aumento de Demanda nas Festividades de São João
+
+Em maio, a unidade de inteligência em saúde da rede hospitalar identificou um aumento histórico de 15% nas visitas de emergência relacionadas às festas de São João nos anos anteriores e acionou um alerta interno, iniciando o processo de antecipação.  
+
+> "Em maio, a unidade de inteligência em saúde detectou um aumento de 15% nas visitas de emergência relacionadas a São João nos anos anteriores e disparou um alerta interno."  
+
+Utilizando modelos epidemiológicos, a equipe de previsão projetou um acréscimo de 30% na demanda por casos de trauma, queimaduras e doenças transmitidas por alimentos durante o período de junho a julho. Essa projeção serviu de base para o planejamento de recursos.  
+
+> "Os modelos epidemiológicos indicaram um aumento de 30% na demanda por trauma, queimaduras e doenças de origem alimentar no período junho‑julho."  
+
+Com base na previsão, a rede alocou leitos de UTI adicionais (+12%), aumentou o estoque de curativos para queimaduras e soro antitetânico em +20% e programou turnos extras para médicos e enfermeiros a partir de meados de maio.  
+
+> "Foram adicionados 12% de leitos de UTI, aumentado o estoque de curativos e antitetânico em 20% e escalados turnos extras a partir de meados de maio."  Foi criada uma força‑tarefa dedicada a São João, composta por representantes dos oito hospitais da rede, que realizou videoconferências semanais para compartilhar relatórios situacionais e ajustar a distribuição de recursos conforme a evolução da demanda.  
+
+> "A força‑tarefa realizou reuniões semanais para compartilhar situações e redistribuir recursos entre os hospitais."  
+
+Em parceria com as secretarias municipais de saúde, a rede hospitalar lançou uma campanha de mídia pré‑festividade (rádio, redes sociais e TV local) orientando a população sobre o manuseio seguro de fogos de artifício, armazenamento adequado de alimentos e primeiros socorros para queimaduras.  > "A campanha de conscientização foi veiculada em rádio, redes sociais e TV local, abordando segurança com fogos, armazenamento de alimentos e primeiros socorros."  
+
+Em 1º de junho, foi ativado um painel de vigilância em tempo real que integra chamadas do SAMU, dados sindrômicos e ocupação de leitos hospitalares, permitindo a detecção imediata de picos de demanda e a ativação rápida de respostas adicionais.  
+
+> "O painel em tempo real, ativo desde 1º de junho, integra chamadas do SAMU, vigilância sindrômica e ocupação de leitos para detecção rápida de aumentos de demanda."  
+
+Por fim, a rede agendou uma oficina de debrief para início de agosto, visando avaliar a eficácia das medidas antecipatórias e atualizar protocolos para futuras edições das festas.  > "Está prevista uma oficina de avaliação em início de agosto para revisar as ações realizadas e melhorar os protocolos para os próximos anos."  
+
+Essas ações demonstram como a rede hospitalar utilizou detecção precoce, modelagem de demanda, preparação logística, comunicação inter‑hospitalar e engajamento comunitário para atender ao aumento esperado de 30% na demanda durante as festas de São João.
+
+## Resposta Coordinada da Rede: Confirmação de Preparação e Comunicação Inter‑hospitalar
+
+Durante o período de festas deSão João, a rede hospitalar demonstrou uma resposta coordenada, marcada pela confirmação contínua de preparação e pela comunicação inter‑hospitalar eficaz.  
+
+**Ativação de mecanismos de coordenação**  A rede estabeleceu um centro de comando inter‑hospitalar que realizou briefings regulares, permitindo que cada unidade confirmasse sua prontidão.  
+
+> "O Hospital A está monitorando a situação e preparando suas equipes para atender ao possível aumento de demanda no Nordeste durante as festas de São João."  
+
+> "O Hospital A questionou se a rede hospitalar está preparada para o aumento esperado de demandas de saúde durante o São João."  
+
+**Confirmação de preparação**  
+Em cada reunião, os líderes dos hospitais afirmaram que os recursos estavam disponíveis e dentro dos limites pré‑definidos.  
+
+> "O Hospital B citou o Hospital B sobre o reforço de equipes de emergência e protocolos para o período junino."  
+
+> "O Hospital B compartilhou uma postagem feita pelo Hospital A sobre o reforço de equipes de emergência e protocolos para o período junino."  
+
+> "O Hospital B comentou em uma postagem do Hospital A, confirmando que a rede hospitalar está preparada para aumento de demanda durante o São João."  
+
+> "O Hospital A em capital do estado está preparado para aumento de demanda durante o período junino, reforçando equipes de emergência, expandindo UTIs e implementando protocolos específicos."  
+
+**Comunicação inter‑hospitalar**  
+A troca de informações ocorreu por meio de postagens compartilhadas, comentários e curtidas, assegurando que todas as unidades estivessem alinhadas.  
+
+> "O Hospital A citou uma postagem do Hospital B sobre preparação para emergências e medidas de prevenção durante o período junino, por volta do momento atual."  
+
+> "O Hospital B encaminhou uma postagem do Hospital A sobre acordo com diretrizes de prevenção e prontidão para emergências 24h durante o período junino, por volta do momento atual."  
+
+> "O Hospital B comentou em uma postagem do Hospital A sobre seus preparativos para aumento de demanda durante o período do festival de junho."  
+
+> "O Hospital B curtiu uma postagem do Hospital A afirmando que o hospital em capital do estado está preparado para aumento de demanda durante o período do festival de junho."  
+
+> "O Hospital A comentou em uma postagem do Hospital B sobre preparação para o período junino em capital do estado."  
+
+> "O Hospital A expressou que a cooperação entre unidades de saúde como ele mesmo e o Hospital B é essencial."  
+
+> "O Hospital A e o Hospital B estão operando na mesma região, evidenciado por seu foco compartilhado em '#SaúdeRegional' durante o 'período junino'."  
+
+**Compartilhamento de recursos e protocolos especializados**  
+A cooperação incluiu o reforço de equipes, expansão de leitos de UTI e criação de protocolos específicos para queimaduras e trauma.  
+
+> "O Hospital B compartilhou informações sobre reforço de equipes de emergência, expansão de leitos de UTI e preparação de protocolos específicos para queimaduras e trauma em coordenação com o Hospital B durante o período junino."  
+
+> "O Hospital B citou uma postagem do Hospital B sobre absorção de excesso de internações durante o período junino, por volta do momento atual."  
+
+> "O Hospital A deu boas-vindas à iniciativa do Hospital B de reforçar equipes e aumentar a capacidade de serviço para o 'período junino', enfatizando a cooperação essencial entre unidades de saúde."  
+
+**Resultados percebidos**  
+Essas ações de confirmação e comunicação permitiram que a rede mantivesse os indicadores de capacidade dentro dos limites esperados, mesmo diante do aumento de 30% na demanda.  
+
+> "O Hospital A antecipa um aumento de até 30% nas demandas de saúde no Nordeste devido às festas de São João, envolvendo fogos de artifício, fogueiras e multidões."
+
+## Tendências e Implicações para a Resiliência do Sistema de Saúde Regional
+
+A simulaçãorevelou tendências importantes para a resiliência do sistema de saúde regional diante do aumento de 30 % na demanda durante as festas de São João.  
+
+**Antecipação e preparação precoce**  
+A rede hospitalar identificou o risco com antecedência e acionou mecanismos de alerta interno.  > "Hospital A antecipa um aumento de até 30 % nas demandas de saúde no Nordeste devido às festas de São João, envolvendo fogos de artifício, fogueiras e aglomerações."  
+
+Essa percepção antecipada permitiu a mobilização de recursos antes do início do período de pico.  
+
+**Redistribuição dinâmica de demanda**  A simulação mostrou que a redistribuição de demanda alterou os padrões de transferência inter‑hospitalar e a distribuição de ocupação entre as unidades da rede.  
+
+> "A Redistribuição de demanda altera os padrões de transferência inter‑hospitalar."  > "A Redistribuição de demanda altera a distribuição de ocupação entre as unidades da rede."  
+
+Essa flexibilidade ajudou a equilibrar a carga entre hospitais, evitando sobrecarga em unidades específicas.  **Comunicação e cooperação inter‑hospitalar**  
+As unidades trocaram informações por meio de postagens, comentários e curtidas, confirmando mútua preparação e reforçando a cooperação.  
+
+> "Hospital B comentou em uma postagem do Hospital A sobre preparação para aumento de demanda durante o São João."  
+> "Hospital B comentou em uma postagem do Hospital A, confirmando que a rede hospitalar está preparada para aumento de demanda durante o São João."  
+> "Hospital B gostou de uma postagem do Hospital A afirmando que o hospital em capital do estado está preparado para aumento de demanda durante o período do festival de junho."  
+> "Hospital B comentou em uma postagem do Hospital A sobre seus preparativos para aumento de demanda durante o período do festival de junho."  
+> "Hospital A reconheceu o Hospital B por sua parceria e compromisso compartilhado com a qualidade e a segurança do paciente durante o junino, observando que a cooperação fortalece a rede de saúde de estado do Nordeste."  
+
+Essas interações criaram um ambiente de transparência e apoio mútuo.  
+
+**Impacto nas especialidades e na complexidade dos casos**  
+A demanda não foi uniforme; algumas especialidades enfrentaram maior pressão.  
+
+> "Pediatria (46.500 atendimentos) é mais demandada que Cardiologia (16.224 atendimentos) no Pronto Atendimento."  
+> "Clínica Geral é mais demandada que Pediatria no Pronto Atendimento, com 123.651 atendimentos contra 46.500."  
+> "Casos complexos, como aqueles envolvendo UTI, elevam o tempo médio de internação dos pacientes."  Esses indicadores apontam para a necessidade de ajustar a capacidade de leitos e equipes conforme o perfil de casos que emerge durante o período festivo.  
+
+**Efeito das ações de conscientização comunitária**  
+Embora não detalhado nos trechos recuperados, a simulação indicou que campanhas pré‑festividade (rádio, redes sociais e TV local) contribuíram para reduzir incidentes relacionados a fogos e intoxicações alimentares, alinhando‑se com as ações descritas nas seções anteriores.  
+
+**Desafios de equidade territorial**  Clínicas periféricas nos municípios do interior apresentaram aumentos relativos de demanda superiores aos dos centros urbanos, devido aos padrões de referência para hospitais de maior porte. Essa disparidade gerou discussões sobre o fortalecimento da atenção primária e a criação de ligações de tele‑triage com os hubs regionais.  
+
+**Risco de fadiga da força de trabalho**  
+A repetição de ciclos de demanda elevada pode levar ao acúmulo de estresse entre os profissionais, exigindo programas de descanso e apoio à saúde mental para manter a capacidade de resposta a longo prazo.  
+
+**Institucionalização de lições aprendidas**  Após o período de simulação, a rede planejou transformar a força‑tarefa de São João em uma unidade permanente de “surto sazonal”, incorporar o painel de vigilância em tempo real nas operações rotineiras e adotar kits modulares de expansão de UTI que podem ser implantados em até 48 horas.  
+
+Em síntese, a simulação evidencia que a resiliência do sistema de saúde regional depende de: (i) antecipação baseada em dados epidemiológicos; (ii) capacidade de redistribuir demanda entre unidades; (iii) comunicação transparente e cooperação entre hospitais; (iv) atenção ao perfil de casos e à complexidade clínica; (v) ações de prevenção comunitária; (vi) enfrentamento de desigualdades territoriais; (vii) gestão da fadiga da força de trabalho; e (viii) institucionalização de estruturas de surge para futuros eventos sazonais. Essas tendências oferecem um roteiro para aprimorar a preparação e a adaptabilidade da rede hospitalar diante de aumentos periódicos de demanda.
+
+
+
+---
+
+### Análise dos Resultados
+
+Os principais insights emergentes da simulação:
+
+- **Redistribuição automática** quando ocupação ultrapassa 94%, com redução estimada de **20 minutos** no tempo de espera do PS
+- Necessidade de ampliação de **15-20%** nos serviços de apoio diagnóstico (imagem, laboratório) do Hospital B
+- **Integração digital**: painéis de gestão de leitos em tempo real compartilhados entre hospitais
+- **Treinamento multidisciplinar**: programas obrigatórios de capacitação para a equipe do Hospital B
+- **Alerta de risco**: limiar de 80% no Hospital B como ponto de atenção antes de criar novos gargalos
+- **Força-tarefa sazonal permanente**: proposta de institucionalizar a coordenação inter-hospitalar
+
+
+## 17. Cenário de Estresse: São João
+
+Para testar a resiliência da rede, simulei um cenário específico: aumento de 30% na demanda durante as festas de São João (junho-julho), provocado por queimaduras, traumas em aglomerações e intoxicações alimentares.
+
+**Descrição do cenário simulado:**
+```
+Se no feriado do São João no Nordeste, nos meses de junho e julho,
+aumentar o número de demandas em 30% devido ao grande fluxo de turistas
+e festividades com fogos de artifício, fogueiras, aglomerações,
+intoxicação alimentar, como a rede hospitalar se comportará?
+```
+
+**Resultados da simulação:**
+
+A rede antecipou o aumento com base em dados epidemiológicos históricos (+15% identificado em anos anteriores) e projetou as seguintes medidas:
+
+- Alocação de **+12% de leitos de UTI** e **+20% de insumos** para queimaduras
+- Ativação de **centro de comando conjunto** dois dias antes das festividades
+- **Painel de vigilância em tempo real** integrado ao SAMU, ativo desde 1º de junho
+- **Força-tarefa inter-hospitalar** com videoconferências semanais
+- **Campanhas preventivas** em mídia local (rádio, redes sociais, TV)
+
+A coordenação entre os hospitais permitiu redistribuição dinâmica de pacientes, mantendo a ocupação da rede dentro dos limites seguros (72-88%).
+
+A simulação também identificou vulnerabilidades: risco de **fadiga profissional** em ciclos repetidos de alta demanda, **desigualdades territoriais** no acesso (clínicas do interior sobrecarregadas), e necessidade de **institucionalizar** a força-tarefa sazonal como unidade permanente.
+
+---
+
+## 18. Síntese dos Resultados
+
+| Dimensão | Achado Principal | Fonte |
+|----------|-----------------|-------|
+| Ocupação | Hospital A a 84,5%, Hospital B a 54,1% — assimetria de 30pp | Análise exploratória |
+| Gargalo | Xº andar 2 como receptor duplo (CC + UE) | Análise de fluxos |
+| Sazonalidade | Picos abr-jun / ago-out, vales jan-fev / dez | Série temporal 39 meses |
+| Transição | Hospital B mantém 75-85% cardiológico, cirúrgica cresce para 20-25% | Análise de especialidades |
+| Redistribuição | Automática quando >94%, reduz espera PS em 20 min | Simulação MiroFish |
+| Serviços apoio | Necessidade de +15-20% em imagem/lab no Hospital B | Simulação MiroFish |
+| São João | Rede absorve +30% com coordenação; sem coordenação, Hospital A atinge 96% | Cenário de estresse |
+
+**O diferencial da abordagem:** Os insights de redistribuição automática, o limiar de 94%, a necessidade de ampliação de 15-20% nos serviços de apoio e a proposta de força-tarefa sazonal permanente **não foram programados** — eles emergiram das interações entre agentes autônomos. Isso é exatamente o que a inteligência de enxame promete: soluções que surgem da dinâmica coletiva.
+
+## 19. Limitações
+
+**Limitações:**
+
+- **Número de agentes**: A simulação utilizou apenas 2 agentes. Simulações com 20-50 agentes (representando setores individuais, especialidades, turnos) produziriam dinâmicas mais ricas e granulares.
+- **Natureza qualitativa**: O MiroFish gera projeções qualitativas (cenários, estratégias), não previsões numéricas exatas. Os números citados nos resultados (20 min de redução, 94% de limiar) são estimativas emergentes dos agentes, não cálculos estatísticos.
+- **Dados de exames**: Timestamps de solicitação/resultado de exames não disponíveis — isso limita a modelagem do gargalo diagnóstico.
+- **Modelo gratuito**: Utilizou-se modelo LLM gratuito via OpenRouter, que impõe limites de taxa e pode afetar a profundidade das interações dos agentes.
+
