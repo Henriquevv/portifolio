@@ -54,15 +54,40 @@ export default function GoogleTranslate() {
       }
     };
 
+    // ==========================================
+    // LÓGICA DO CURRÍCULO DINÂMICO
+    // ==========================================
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const linkElement = target.closest("a");
+
+      // Se clicou em um link que termina em #cv
+      if (linkElement && linkElement.href.includes("#cv")) {
+        e.preventDefault(); // Impede o redirecionamento padrão
+
+        // Lê o cookie do Google para saber o idioma atual de forma confiável
+        const translateCookie = document.cookie.split("; ").find((row) => row.startsWith("googtrans="));
+        const isEnglish = translateCookie && translateCookie.includes("/en");
+
+        const linkPT = "/curriculo.pdf";
+        const linkEN = "/curriculo-en.pdf"; // Lembre-se de ter este arquivo na pasta public
+
+        window.open(isEnglish ? linkEN : linkPT, "_blank");
+      }
+    };
+
+    // Começa a ouvir os cliques na tela
+    document.addEventListener("click", handleLinkClick);
+
     const script = document.createElement("script");
-    script.src =
-      "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
     script.async = true;
     document.body.appendChild(script);
 
     return () => {
       document.body.removeChild(script);
       document.head.removeChild(style);
+      document.removeEventListener("click", handleLinkClick); // Limpa o evento de clique
     };
   }, []);
 

@@ -43,8 +43,8 @@ const social: Social = [
   },
   {
     name: "Currículo",
-    icon: "person", // Este ícone já existe na biblioteca do template
-    link: "/curriculo.pdf", // Certifique-se que o nome do ficheiro na pasta public é igual a este
+    icon: "person",
+    link: "/curriculo.pdf#cv",
   },
 ];
 
