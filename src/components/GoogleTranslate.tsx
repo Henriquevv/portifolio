@@ -14,7 +14,7 @@ export default function GoogleTranslate() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    // detecta idioma do navegador
+    
     const browserLang = navigator.language || navigator.languages?.[0] || "pt";
     const isEnglish = browserLang.toLowerCase().startsWith("en");
 
@@ -22,7 +22,7 @@ export default function GoogleTranslate() {
       setCurrentLang("EN");
     }
 
-    // injeta CSS para esconder o banner do Google
+
     const style = document.createElement("style");
     style.innerHTML = `
       .goog-te-banner-frame,
@@ -38,7 +38,7 @@ export default function GoogleTranslate() {
         "google_translate_element"
       );
 
-      // após o widget carregar, auto-traduz se navegador for EN
+
       if (isEnglish) {
         const tryAutoTranslate = setInterval(() => {
           const select = document.querySelector<HTMLSelectElement>(".goog-te-combo");
@@ -49,35 +49,33 @@ export default function GoogleTranslate() {
           }
         }, 200);
 
-        // segurança: para de tentar após 5s
         setTimeout(() => clearInterval(tryAutoTranslate), 5000);
       }
     };
 
-    // ==========================================
-    // LÓGICA DO CURRÍCULO DINÂMICO
-    // ==========================================
-    const handleLinkClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const linkElement = target.closest("a");
+    const setupCurriculoLinks = () => {
+      const cvLinks = document.querySelectorAll('a[href*="#cv"]');
 
-      // Se clicou em um link que termina em #cv
-      if (linkElement && linkElement.href.includes("#cv")) {
-        e.preventDefault(); // Impede o redirecionamento padrão
-
-        // Lê o cookie do Google para saber o idioma atual de forma confiável
-        const translateCookie = document.cookie.split("; ").find((row) => row.startsWith("googtrans="));
-        const isEnglish = translateCookie && translateCookie.includes("/en");
-
-        const linkPT = "/curriculo.pdf";
-        const linkEN = "/curriculo-en.pdf"; // Lembre-se de ter este arquivo na pasta public
-
-        window.open(isEnglish ? linkEN : linkPT, "_blank");
-      }
+      cvLinks.forEach(link => {
+        link.removeEventListener("click", handleCvClick);
+        link.addEventListener("click", handleCvClick);
+      });
     };
 
-    // Começa a ouvir os cliques na tela
-    document.addEventListener("click", handleLinkClick);
+    const handleCvClick = (e: Event) => {
+      e.preventDefault(); 
+      
+      const translateCookie = document.cookie.split("; ").find((row) => row.startsWith("googtrans="));
+      const isEnglishCookie = translateCookie && translateCookie.includes("/en");
+
+      const linkPT = "/curriculo.pdf";
+      const linkEN = "/curriculo-en.pdf";
+
+      window.open(isEnglishCookie ? linkEN : linkPT, "_blank");
+    };
+
+    const findLinksTimeout = setTimeout(setupCurriculoLinks, 500);
+
 
     const script = document.createElement("script");
     script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
@@ -87,7 +85,13 @@ export default function GoogleTranslate() {
     return () => {
       document.body.removeChild(script);
       document.head.removeChild(style);
-      document.removeEventListener("click", handleLinkClick); // Limpa o evento de clique
+      clearTimeout(findLinksTimeout);
+      
+      // Limpeza dos event listeners ao desmontar o componente
+      const cvLinks = document.querySelectorAll('a[href*="#cv"]');
+      cvLinks.forEach(link => {
+        link.removeEventListener("click", handleCvClick);
+      });
     };
   }, []);
 
