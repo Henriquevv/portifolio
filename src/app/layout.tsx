@@ -4,7 +4,7 @@ import "@/resources/custom.css";
 import { Analytics } from "@vercel/analytics/react";
 import classNames from "classnames";
 import "katex/dist/katex.min.css";
-import GoogleTranslate from "@/components/GoogleTranslate";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 import {
   Background,
@@ -115,7 +115,7 @@ export default async function RootLayout({
           padding="0"
           horizontal="center"
         >
-          <GoogleTranslate />
+          <LanguageSwitcher />
           <RevealFx fill position="absolute">
             <Background
               mask={{

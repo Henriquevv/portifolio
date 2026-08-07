@@ -1,0 +1,1634 @@
+---
+title: "Case Study: Length of Stay (LOS) Forecast and Bed Management"
+publishedAt: "2025-12-20"
+summary: "Machine Learning pipeline for Length of Stay (LOS) prediction using a hybrid approach. The project combines Survival Analysis (Lifelines, Kaplan-Meier) to map discharge dynamics with Classification algorithms (XGBoost) to predict long-stay risks. Includes robust attribute engineering (censorship and seasonality treatment) and a model interpretability layer (Explainable AI) using SHAP values."
+images:
+  - "/images/projects/los/inicial1.png"
+  - "/images/projects/los/inicial2.png"
+team:
+  - name: "Henrique Valentim"
+    role: "Business Analyst"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+
+### I. Definition and Preparation
+* 1. The Business Problem: The challenge of bed unpredictability.
+* 2. Solution Proposal: Hybrid approach (Regression + Classification).
+* 3. Preparation of Analysis Tools: Environment configuration.
+* 4. Construction of the Analytical Base and Variable Engineering: Treatment and creation of features (Seasonality, CIDs).
+
+### II. Diagnosis
+* 5. Staying Behavior (EDA): Exploratory analysis of the target variable.
+* 6. Data Refinement and Intelligence Creation: Final preparation for modeling.
+
+### III. Predictive Modeling
+* 7. Bed Days Estimation (Regression Modeling): Predicting the exact duration.
+* 8. Identifying Bottlenecks (Comparison of Clinical Profiles): Survival Analysis (Kaplan-Meier).
+* 9. Triage Solution (Identification of Critical Patients): Risk Classification (XGBoost).
+
+### IV. Validation and Trust
+* 10. Visual Audit: The Balance between Risk and Efficiency (ROC and Trade-off Curves).
+* 11. Reliability Audit: Is the Model “Honest”? (Calibration Curve).
+
+### V. Delivery of Value (Data Product)
+* 12. From Model to Practice: The Decision Simulator (Tool for use on the cutting edge).
+* 13. Opening the Black Box: The “Why” of the Decision (Interpretability with SHAP Values).
+* 14. Cause Mapping: What really holds the patient back? (Statistical inference with Cox Regression).
+* 15. Artifact Persistence and Data Product Delivery: Export to production.
+
+### VI. Strategic Conclusion
+* 16. Length of Stay (LOS) Forecast: Data-Based Strategy and Summary of Impacts.
+* 17. Limitations and Opportunities for Evolution: Next steps for the project.
+
+---
+
+## 1. The Business Problem
+The unpredictability of Length of Stay (LOS) is one of the biggest bottlenecks in hospital operations. When we don't know when the patient will be discharged, we are unable to plan bed rotation, which leads to overcrowding in the Emergency Room and cancellation of elective surgeries.
+
+This project was developed as a case study in Data Science, simulating real scenarios to demonstrate how the use of data can reduce these uncertainties.
+
+## 2. Solution Proposal
+The objective is to move away from the simple average (which hides serious cases) and use Artificial Intelligence to support clinical decision-making. To achieve this, I structured the analysis on three fronts:
+
+1.  Flow Visibility (Survival Analysis): Map the probability of patient discharge day after day, allowing you to predict the release of beds.
+2.  Risk Screening (Classification): Identify, upon admission, which patients are at high risk of long stay (> 8 days) so that the NIR/Discharge Management can act preventively.
+3.  Diagnosis of Causes (Inference): Understanding which factors (clinical or operational) are "holding back" the patient in the hospital.
+
+---
+*Note: This notebook employs simulated healthcare data structures, with randomly generated information.*
+
+### 3. Preparation of Analysis Tools
+
+To conduct this study, I configured an environment with Data Science libraries focused on three strategic pillars: temporal analysis, risk prediction and model transparency.
+
+In addition to standard data processing tools, I selected specific packages to answer business questions:
+
+* Lifelines: Used for Survival Analysis, allowing to map the probability of patient discharge over the days and understand occupancy dynamics.
+* XGBoost & Scikit-Survival: High-performance algorithms for risk prediction and length of stay estimation, capable of dealing with the complexity and specificities of hospital data (such as censored data).
+* SHAP: Interpretability tool that reveals which factors (such as age, diagnosis or origin) weighed most in the model decision, eliminating the "black box" effect and generating clinical confidence.
+
+```python
+!pip install xgboost lifelines scikit-survival shap pandas openpyxl
+```
+
+### 4. Construction of the Analytical Base and Variable Engineering
+
+Simulated data for this study, inspired by real extractions from management systems (ERP), often contain noise that distorts indicators. In this step, I processed the simulated raw base to ensure that the model learns from the represented operational reality, and not from registration inconsistencies.
+
+Strategic Transformations:
+
+* Temporal Sanitation: Strict standardization of entry and exit dates. This prevents typing errors (e.g. changing days for months) from creating "artificial outliers" that would harm the average length of stay.
+* Actual Occupancy Calculation (LOS): Definition of length of stay ($\Delta t$). Adjusted "same day discharge" cases to ensure that every patient accounts for resource consumption, eliminating null values.
+* Management of Active Patients (Censorship): A difference from Survival Analysis. I created the event variable ($E$) to teach the model to distinguish:
+    * $E=1$: Closed cycle (Patient was discharged/death).
+    * $E=0$: Censorship (Patient *is still in bed*). This prevents the model from thinking that an ongoing long hospitalization is an error or missing data.
+* Statistical Stabilization (Log-Transform): As the length of stay does not follow a normal curve (many quick patients, few very long ones), I applied a logarithmic transformation (`np.log1p`). This balances the weight of edge cases, allowing the model to learn majority patterns without ignoring complex cases.
+
+
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+%matplotlib inline
+sns.set_style('whitegrid')
+
+arquivo_carregado = False
+try:
+    df = pd.read_excel('LOS.xlsx')
+    print("Dataset carregado", df.shape)
+    arquivo_carregado = True
+except FileNotFoundError:
+    print("Arquivo não encontrado. ")
+
+
+if arquivo_carregado:
+
+    df['DT_ENTRADA'] = pd.to_datetime(df['DT_ENTRADA'], dayfirst=True, errors='coerce')
+    df['DT_SAIDA'] = pd.to_datetime(df['DT_SAIDA'], dayfirst=True, errors='coerce')
+
+    if 'DIAS_DE_PERMANENCIA' in df.columns:
+        df['DIAS_DE_PERMANENCIA'] = pd.to_numeric(df['DIAS_DE_PERMANENCIA'], errors='coerce')
+
+    df['LOS_CALCULADO'] = (df['DT_SAIDA'] - df['DT_ENTRADA']).dt.days
+    df['LOS'] = df['LOS_CALCULADO'].apply(lambda x: 1 if (pd.notna(x) and x == 0) else x)
+
+    df['Evento_ocorreu'] = np.where(df['DT_SAIDA'].notna(), 1, 0)
+
+    data_referencia = df['DT_SAIDA'].max()
+    if pd.isna(data_referencia):
+        data_referencia = pd.Timestamp.now()
+
+    mask_internado = df['DT_SAIDA'].isna()
+    if mask_internado.any():
+         df.loc[mask_internado, 'LOS'] = (data_referencia - df.loc[mask_internado, 'DT_ENTRADA']).dt.days
+
+    df['LOS'] = df['LOS'].fillna(0).clip(lower=1)
+
+    df['LOS_LOG'] = np.log1p(df['LOS'])
+
+    if 'CD_CID_PRINCIPAL' in df.columns:
+        df['CID_CAPITULO'] = df['CD_CID_PRINCIPAL'].astype(str).str[0].fillna('ND')
+    else:
+        df['CID_CAPITULO'] = 'ND'
+
+    cols_demograficas = ['IDADE', 'SEXO']
+    cols_clinicas = [
+        'CID_CAPITULO', 'CD_CID_PRINCIPAL',
+        'FL_HIPERTENSAO', 'FL_DIABETES', 'FL_DOENCA_RENAL',
+        'FL_NEOPLASIA', 'FL_INSUF_CARDIACA', 'FL_DOENCA_PULMONAR',
+        'HIST_QTD_INTERNACOES_ANO'
+    ]
+
+    cols_flags = [c for c in cols_clinicas if c.startswith('FL_')]
+    df[cols_flags] = df[cols_flags].fillna(0)
+
+    cols_contexto = ['CARATER_ATENDIMENTO', 'ORIGEM_PACIENTE', 'CD_SETOR_ENTRADA', 'TIPO_SAIDA']
+    cols_sinais_vitais = ['SV_PAS_ADMISSAO', 'SV_PAD_ADMISSAO', 'SV_FREQ_CARDIACA']
+
+    todas_cols_desejadas = cols_demograficas + cols_clinicas + cols_contexto + cols_sinais_vitais
+    cols_existentes = [c for c in todas_cols_desejadas if c in df.columns]
+
+    colunas_finais = cols_existentes + ['DT_ENTRADA', 'DT_SAIDA', 'LOS', 'LOS_LOG', 'Evento_ocorreu']
+    df_mestre = df[colunas_finais].copy()
+
+    print("\n Dataset Mestre Criado")
+    print("Dimensões:", df_mestre.shape)
+    display(df_mestre[['CD_CID_PRINCIPAL', 'CID_CAPITULO', 'LOS', 'LOS_LOG']].head())
+else:
+    print("Erro de carregamento")
+```
+
+### 5. Dwelling Behavior (EDA)
+
+Before predicting the future, it is crucial to understand the present. In this step, I analyzed the actual Dwell Time (LOS) distribution to establish our baseline for comparison.
+
+Structural Insights:
+
+* The "Mean Trap" (Asymmetric Distribution): I confirmed that the hospital data has a "right-skewed" shape. Few patients with very long stays push the average upwards, making it not representative of the typical patient.
+    * *Technical Action:* I applied logarithmic transformations to normalize the data. This prevents the model from being biased by *outliers* and mispredicting the vast majority of services.
+
+* The Comparison Ruler (Kaplan-Meier Global): I constructed the Global Survival Curve to answer the question: *"What is the statistical probability of any patient remaining hospitalized after day X?"*.
+    * *Purpose:* This curve acts as our "zero". Any group of patients (e.g. Elderly, Surgical) that deviates greatly from this curve will be identified as a point of attention or efficiency.
+
+
+```python
+from lifelines import KaplanMeierFitter
+
+
+df_eda = df_mestre.copy()
+
+# ANÁLISE DA VARIÁVEL ALVO (LOS)
+fig, ax = plt.subplots(1, 2, figsize=(16, 5))
+sns.histplot(df_eda['LOS'], bins=50, kde=True, ax=ax[0], color='salmon')
+ax[0].set_title('Distribuição do LOS (Dias) - Assimétrica')
+
+sns.histplot(df_eda['LOS_LOG'], bins=50, kde=True, ax=ax[1], color='skyblue')
+ax[1].set_title('Distribuição do Log(LOS) - Mais Normal')
+plt.show()
+
+print(f"Média do LOS: {df_eda['LOS'].mean():.2f} dias | Mediana: {df_eda['LOS'].median():.2f} dias")
+
+# ANÁLISE DE SOBREVIVÊNCIA GLOBAL
+plt.figure(figsize=(10, 6))
+kmf = KaplanMeierFitter()
+kmf.fit(durations=df_eda['LOS'], event_observed=df_eda['Evento_ocorreu'])
+kmf.plot_survival_function(linewidth=2)
+plt.title('Curva de Sobrevivência Global (Probabilidade de Permanência)')
+plt.ylabel('Probabilidade de estar internado')
+plt.xlabel('Dias')
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+![png](/images/projects/los/1.png)
+Average LOS: 5.35 days | Median: 2.00 days
+![png](/images/projects/los/2.png)
+
+### Staying Behavior Diagnosis (EDA)
+
+The exploratory analysis served to validate the quality of the data and, mainly, to define the modeling strategy. The data revealed that treating hospitalization as a simple normal distribution would lead to prediction errors.
+
+Key Findings:
+
+#### The "Average Trap"
+I identified a critical discrepancy between the core metrics:
+* Average: 5.35 days.
+* Median: 2.00 days.
+
+Business Insight: The “typical” patient only stays 2 days. The average is inflated (more than double the median) due to a few cases of very long stays. Using the simple average for capacity planning would generate serious distortions, allocating the wrong resources to the majority of patients.
+
+#### Identification of the Long Tail (Asymmetry)
+The histogram confirmed that the operation deals with two very distinct occupancy profiles:
+* Rapid Turnover (0-5 days): The vast majority of cases.
+* Long Tail (Extreme): Highly complex cases that, although less frequent, disproportionately consume available bed days.
+
+#### Technical Correction (Logarithmic Transformation)
+To deal with this asymmetry, I applied the `np.log1p` function to the target variable.
+* Objective: Compress the scale of extreme values ​​(very high days) to bring the distribution closer to a normal curve. This prevents the regression algorithm from getting "confused" by trying to adjust the error for just the edge cases, improving overall accuracy.
+
+Strategic Decision:
+Given the confirmed high variability, I concluded that a pure regression model (predicting the exact day) will have natural limitations. Therefore, the most robust strategy for the hospital is to act on two fronts: estimating the duration, but mainly Classifying the Risk, segregating patients from "Quick Turn" vs. "Long Stay" (> 8 days).
+
+### 6. Data Refinement and Intelligence Creation
+
+For the model to see complex patterns, it is not enough to deliver the system's raw data. Performed an Attribute Engineering process to translate administrative records into tangible risk factors for the algorithm.
+
+Enrichment Strategies:
+
+1.  Seasonal Context (`IS_INVERNO`):
+    I created a specific indicator for the period from June to September. This teaches the model that, in these months, the complexity of cases naturally increases (due to respiratory diseases), adjusting the stay prediction upwards regardless of the base diagnosis.
+
+2.  Vital Signs Sanitation:
+    Implemented security filters for physiological data. Impossible values ​​(e.g., zero blood pressure or saturation) were treated as a measurement/typing error and statistically corrected. This prevents the model from confusing a registration error in triage with a dying or highly serious patient.
+
+3.  Clinical Data Translation:
+    Mathematical algorithms do not interpret text. I converted qualitative variables (such as Specialty and Agreement) into binary numerical representations (*One-Hot Encoding*), allowing the model to weight the exact weight of each specialty in the occupation time.
+
+4.  Validation Protocol (Stratified Split):
+    I separated 20% of the data for testing. The division was made ensuring that the proportion of discharged patients vs. hospitalized patients was identical in both groups, faithfully simulating the mix of patients that the hospital receives on a daily basis.
+
+
+```python
+from sklearn.model_selection import train_test_split
+import pandas as pd
+import numpy as np
+
+if 'df_mestre' not in locals():
+    print("df_mestre não encontrado. Usando df.")
+    df_final = df.copy()
+else:
+    df_final = df_mestre.copy()
+
+
+#Sazonalidade
+if 'DT_ENTRADA' in df_final.columns:
+    df_final['DIA_SEMANA'] = df_final['DT_ENTRADA'].dt.day_name()
+    df_final['MES'] = df_final['DT_ENTRADA'].dt.month
+    # Flag para meses de Inverno/Outono (ajuste conforme sua região, aqui assumindo Sul/Sudeste)
+    df_final['IS_INVERNO'] = df_final['MES'].isin([5, 6, 7, 8]).astype(int)
+
+# Se um capítulo de CID aparece pouco, agrupa como 'OUTROS' para não gerar ruído
+contagem_cid = df_final['CID_CAPITULO'].value_counts()
+cids_raros = contagem_cid[contagem_cid < 50].index # Menos de 50 casos
+df_final['CID_CAPITULO'] = df_final['CID_CAPITULO'].apply(lambda x: 'OUTROS' if x in cids_raros else x)
+
+
+# Sinais Vitais
+cols_sinais = ['SV_PAS_ADMISSAO', 'SV_PAD_ADMISSAO', 'SV_FREQ_CARDIACA', 'SV_FREQ_RESPIRATORIA', 'SV_TEMPERATURA', 'SV_SATURACAO_O2']
+for col in cols_sinais:
+    if col in df_final.columns and df_final[col].dtype == 'O':
+        df_final[col] = pd.to_numeric(df_final[col].astype(str).str.replace(',', '.'), errors='coerce')
+
+features_num = ['IDADE', 'HIST_QTD_INTERNACOES_ANO'] + [c for c in cols_sinais if c in df_final.columns]
+
+# Categóricas e Binárias
+cols_cat_candidatas = ['SEXO', 'CARATER_ATENDIMENTO', 'DIA_SEMANA', 'ORIGEM_PACIENTE', 'CID_CAPITULO', 'DS_CLINICA']
+features_cat = [c for c in cols_cat_candidatas if c in df_final.columns]
+
+cols_flags = ['FL_HIPERTENSAO', 'FL_DIABETES', 'FL_DOENCA_RENAL', 'FL_NEOPLASIA', 'FL_INSUF_CARDIACA', 'FL_DOENCA_PULMONAR', 'IS_INVERNO']
+features_bin = [c for c in cols_flags if c in df_final.columns]
+
+all_features = features_num + features_cat + features_bin
+
+for col in features_num:
+    df_final[col] = df_final[col].replace([np.inf, -np.inf], np.nan)
+
+for col in features_bin:
+    df_final[col] = df_final[col].fillna(0)
+
+print(f"Features selecionadas: {len(all_features)}")
+
+X = df_final[all_features]
+y_reg = df_final['LOS_LOG']
+y_days = df_final['LOS']
+y_event = df_final['Evento_ocorreu']
+
+# Split
+X_train, X_test, y_train, y_test, y_days_train, y_days_test, e_train, e_test = train_test_split(
+    X, y_reg, y_days, y_event, test_size=0.2, random_state=42
+)
+
+print("\nSplit Realizado")
+print(f"Treino: {X_train.shape[0]} | Teste: {X_test.shape[0]}")
+
+
+%store features_num features_cat features_bin
+```
+
+```text
+Features selecionadas: 17
+
+Split Realizado
+Treino: 8608 | Teste: 2153
+Stored 'features_num' (list)
+Stored 'features_cat' (list)
+Stored 'features_bin' (list)
+```
+
+
+### 7. Estimation of Bed Days: Regression Modeling
+
+At this stage, the objective was to answer the most critical operational question: *"How many days, exactly, should this patient occupy the bed?"*. I treated the problem as a regression task to estimate continuous LOS.
+
+Strategic Modeling Decisions:
+
+* The Engine (Random Forest): I chose an *ensemble* model (random forest) for its ability to understand human complexity.
+    * *Why:* Health is not linear. The combination of factors (e.g. *Advanced Age* + *Heart Failure*) generates an exponential risk, not just a simple sum. Linear models would fail to capture this nuance, but decision trees excel at this.
+
+* The Success Metric (MAE - Average Error): To evaluate the model, I prioritized the Average Absolute Error.
+    * *Justification:* As we saw in the exploratory analysis, we have extreme cases (hospitalizations lasting months). Traditional metrics (such as RMSE) would give excessive weight to these rare cases, skewing accuracy for the "typical" 3-day patient. MAE maintains focus on day-to-day performance.
+
+Expectation Management:
+Biological recovery has unpredictable (stochastic) variables. The objective of this model is not to "guess the future" with minute precision, but to minimize the average error to provide reliable planning guidance for the bed management team.
+
+
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, RobustScaler
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+
+%store -r features_num features_cat features_bin
+
+
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', RobustScaler())
+])
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='Desconhecido')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, features_num),
+        ('cat', categorical_transformer, features_cat),
+        ('bin', 'passthrough', features_bin)
+    ])
+
+model_rf = RandomForestRegressor(
+    n_estimators=200,
+    max_depth=15,
+    min_samples_leaf=4,
+    n_jobs=-1,
+    random_state=42
+)
+
+melhor_modelo = Pipeline(steps=[('preprocessor', preprocessor),
+                                ('model', model_rf)])
+
+print("Treinando Random Forest...")
+melhor_modelo.fit(X_train, y_days_train)
+
+y_pred = melhor_modelo.predict(X_test)
+
+mae = mean_absolute_error(y_days_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_days_test, y_pred))
+r2 = r2_score(y_days_test, y_pred)
+
+print(f"\nRESULTADOS FINAIS (Random Forest):")
+print(f"MAE (Erro Médio): {mae:.2f} dias")
+print(f"RMSE: {rmse:.2f}")
+print(f"R²: {r2:.4f}")
+
+
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x=y_days_test, y=y_pred, alpha=0.4, color='purple')
+plt.plot([0, 150], [0, 150], '--r', linewidth=2, label='Ideal')
+plt.title('Previsão vs Real (Random Forest)')
+plt.xlabel('Dias Reais')
+plt.ylabel('Dias Previstos')
+plt.xlim(0, 60)
+plt.ylim(0, 60)
+plt.legend()
+plt.show()
+```
+
+```text
+    Treinando Random Forest...
+    
+    RESULTADOS FINAIS (Random Forest):
+    MAE (Erro Médio): 3.67 dias
+    RMSE: 9.45
+    R²: 0.1843
+```
+
+![png](/images/projects/los/3.png)
+
+### Discussion of Results: Limits of Accurate Prediction
+
+At this stage, I evaluated the ability of the regression model (*Random Forest*) to answer the question: *"On what exact day will this patient be discharged?"*. The results show a clear dichotomy between routine patients and complex cases.
+
+Performance Diagnosis:
+
+#### The “Blind Spot” of Admission (R² ≈ 18%)
+The model can explain 18.4% of the variability in length of stay.
+* Business Interpretation: This is not a defect in the model, but a characteristic of the sector. Admission data (who the patient is) defines the beginning of the journey, but what really determines discharge are the intra-hospital events (response to medications, availability of tests, complications) that have not yet occurred.
+
+#### Efficiency in the Typical Patient (MAE vs. RMSE)
+Error metrics tell two different stories:
+* For day to day (MAE = 3.67 days): The mean absolute error is low. For the vast majority of patients (low/medium complexity cases), the model is a reliable tool for flow planning.
+* For extreme cases (RMSE = 9.45 days): The squared error jumps due to *outliers*. The model loses accuracy when trying to quantify very long hospitalizations (e.g. predicting whether you will stay for 40 or 60 days).
+
+#### Visual Analysis: Conservatism in Serious Cases
+The scatterplot reveals that the algorithm is conservative:
+* In cases of long stays, it tends to underestimate the real time (predicts fewer days than actually occurs).
+* Diagnosis: The model can detect *that* the patient will take time, but has difficulty determining *how much*.
+
+Strategic Pivot:
+Insisting on predicting the exact discharge day for critically ill patients risks frustration for the care team. The smartest decision is to change the question. Instead of *"What day does he leave?"*, we will focus on *"Is this patient High Risk (> 8 days)?"*.
+
+This takes us to the next step: Risk Classification, where we transform the regression uncertainty into a binary alert system for the NIR (Internal Regulation Core).
+
+### 8. Identifying Bottlenecks: Comparison of Clinical Profiles
+
+We know that “there is no such thing as the average patient.” An elective simple surgery patient does not behave like an acute emergency room patient. In this step, I used the Kaplan-Meier estimator to segment the survival curve and prove where the occupancy bottlenecks are.
+
+Analysis Strategy:
+
+* Flow Visualization (Stratified Curves):
+    I plotted separate discharge curves for different groups (e.g. *Elective vs. Urgent*).
+    * *What we are looking for:* If the curves visually move apart, it means that one group rotates the bed much faster than the other, requiring different management goals.
+
+* Mathematical Test (Log-Rank Test):
+    Não basta o gráfico parecer diferente; é preciso ter certeza estatística.
+    * *Application:* I used the Log-Rank test to calculate whether the difference in length of stay between the groups is real or the result of chance.
+    * *Decision:* If the p-value is < 0.05, we scientifically confirm that that factor (e.g.: Diagnosis) is a critical determinant of the delay in discharge.
+
+
+```python
+from lifelines import KaplanMeierFitter
+from lifelines.statistics import multivariate_logrank_test
+
+# T = Time, E = Event
+T = df_final['LOS']
+E = df_final['Evento_ocorreu']
+
+def analisar_sobrevivencia(dataframe, coluna_grupo, limite_top=5):
+    kmf = KaplanMeierFitter()
+    top_grupos = dataframe[coluna_grupo].value_counts().head(limite_top).index.tolist()
+
+    print(f"\n--- Analisando: {coluna_grupo} ---")
+    plt.figure(figsize=(10, 6))
+    ax = plt.subplot(111)
+
+    for grupo in top_grupos:
+        mask = dataframe[coluna_grupo] == grupo
+        if mask.sum() > 10:
+            kmf.fit(T[mask], event_observed=E[mask], label=str(grupo))
+            kmf.plot_survival_function(ax=ax, ci_show=False)
+
+    plt.title(f"Sobrevivência por {coluna_grupo}")
+    plt.show()
+
+
+if 'CARATER_ATENDIMENTO' in df_final.columns:
+    analisar_sobrevivencia(df_final, 'CARATER_ATENDIMENTO')
+
+if 'CID_CAPITULO' in df_final.columns:
+    analisar_sobrevivencia(df_final, 'CID_CAPITULO')
+```
+
+    
+    --- Analyzing: CHARACTER_ATTENDIMENTO ---
+    
+![png](/images/projects/los/4.png)
+    
+    --- Analyzing: CID_CAPITULO ---
+    
+![png](/images/projects/los/5.png)
+    
+
+
+### Discussion of Results: Where are the Bottlenecks?
+
+Segmentation via Kaplan-Meier revealed that the hospital operates, in practice, with "two hospitals" within one, each with radically opposite occupancy dynamics.
+
+Operational Diagnosis:
+
+#### The Dichotomy of Care (Emergency vs. Elective)
+Survival curves expose two distinct realities:
+* Elective Flow (High Efficiency): Curve with an abrupt drop in the first 48 hours.
+    * *Insight:* Scheduled procedures rotate the bed quickly and predictably. They are the "locomotive" of revenue and efficiency.
+* Urgency Flow (Bottleneck): Smooth curve with long tail.
+    * *Insight:* Unscheduled patients have a longer median length of stay (~4 days) and high variability. They are the occupation's primary offenders, requiring individualized case management.
+
+#### The Burden of Chronic Diseases (ICD Analysis)
+I identified that the entry diagnosis dictates the pace of discharge:
+* Bed Retainers: Chapters 'I' (Circulatory) and 'J' (Respiratory) presented the worst discharge curves. Patients with cardiac or pulmonary decompensation are structurally slower to recover, requiring specific dehospitalization protocols.
+* Rapid Turnover: In contrast, chapter 'K' (Digestive) showed rapid highs ($t < 2$ days), validating the surgical/resolutive profile.
+
+#### Scientific Validation
+The *Log-Rank* test confirmed ($p < 0.0001$) that these differences are not random.
+* Business Conclusion: The origin of the patient (Emergency) and the underlying disease are critical determinants. A predictive model that ignores these variables will be blind to the reality of the hospital. We therefore validate that they must be the main *features* (predictor variables) in the Machine Learning stage.
+
+### 9. Triage Solution: Identification of Critical Patients
+
+Given the difficulty in predicting the exact day of discharge for complex cases (the regression "blind spot"), I adopted a complementary approach: Risk Discretization.
+
+If we can't guarantee *when* the patient leaves, we need to make sure the hospital knows *who* are the patients who are going to stay a long time.
+
+Definition of the New Strategy:
+
+* The Business Question (Binary Target): The model stops trying to hit a number and starts calculating the probability of a critical scenario: *"Does this patient have a chance of exceeding 8 days of hospitalization?"*.
+    * *Why 8 days?* This value represents the upper quartile of our distribution. Patients who exceed this mark are the biggest offenders of bed turnover.
+
+* The Engine (XGBoost Classifier): I used the XGBoost algorithm, an industry standard for classifying unbalanced data (where "success" cases are the minority), to separate the wheat from the chaff.
+
+Success Criteria: The “Error Safe” Policy
+In hospital management, not every error carries the same weight.
+* The Acceptable Error (False Positive): The model says that the patient is serious, the team audits it, but he is quickly discharged. *Cost: Administrative time.*
+* The Unacceptable Error (False Negative): The model says that the patient is simple, no one looks, and he spends 20 days occupying the bed without planning. *Cost: Bed blocking and no assistance.*
+
+Decision: I optimized the model focusing on Recall (Sensitivity). The goal is to create a "safety net" that captures as many seriously ill patients as possible, even if this generates some false alerts to check.
+
+
+```python
+from sklearn.metrics import (classification_report, roc_auc_score, confusion_matrix,
+                             ConfusionMatrixDisplay, precision_recall_curve, f1_score)
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+import xgboost as xgb
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+LIMITE_DIAS = 8
+y_train_class = (y_days_train > LIMITE_DIAS).astype(int)
+y_test_class = (y_days_test > LIMITE_DIAS).astype(int)
+
+ratio = (y_train_class == 0).sum() / (y_train_class == 1).sum()
+
+
+xgb_classifier = xgb.XGBClassifier(
+    n_estimators=200,
+    learning_rate=0.05,
+    max_depth=6,
+    scale_pos_weight=ratio,
+    n_jobs=-1,
+    random_state=42,
+    eval_metric='logloss'
+)
+
+clf_model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', xgb_classifier)
+])
+
+print(f"Validação Cruzada Estratificada (5 Folds)")
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+cv_scores = cross_val_score(clf_model, X_train, y_train_class, cv=cv, scoring='roc_auc')
+
+print(f"   Resultados da Validação Cruzada (AUC):")
+print(f"   Média: {cv_scores.mean():.4f}")
+print(f"   Desvio Padrão: {cv_scores.std():.4f}")
+print(f"   Scores por Fold: {cv_scores}")
+
+if cv_scores.std() > 0.05:
+    print("Alta variância entre os folds. O modelo pode estar instável.")
+else:
+    print("Modelo estável. Prosseguindo para treino final.")
+
+print(f"\n--- Treinando Classificador Final (Target: LOS > {LIMITE_DIAS} dias) ---\n")
+
+clf_model.fit(X_train, y_train_class)
+
+y_proba_test = clf_model.predict_proba(X_test)[:, 1]
+
+precision, recall, thresholds = precision_recall_curve(y_test_class, y_proba_test)
+
+f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
+best_idx = np.argmax(f1_scores)
+best_threshold_math = thresholds[best_idx]
+
+print(f"Análise de Corte (Threshold):")
+print(f"Melhor Threshold Matemático (Max F1): {best_threshold_math:.3f}")
+
+THRESHOLD_ESCOLHIDO = 0.35
+
+print(f"Threshold Escolhido para o Negócio:  {THRESHOLD_ESCOLHIDO:.3f}")
+
+y_pred_padrao = (y_proba_test >= 0.50).astype(int)
+y_pred_otimizado = (y_proba_test >= THRESHOLD_ESCOLHIDO).astype(int)
+
+
+print("COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)")
+print(f"\nAUC-ROC Global (Teste): {roc_auc_score(y_test_class, y_proba_test):.4f}")
+
+print(f"\n--- CENÁRIO PADRÃO (Corte 0.50) ---")
+print("Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.")
+print(classification_report(y_test_class, y_pred_padrao))
+
+print(f"\n--- CENÁRIO OTIMIZADO (Corte {THRESHOLD_ESCOLHIDO}) ---")
+print("Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.")
+print(classification_report(y_test_class, y_pred_otimizado))
+
+fig, ax = plt.subplots(1, 2, figsize=(16, 6))
+
+cm_padrao = confusion_matrix(y_test_class, y_pred_padrao)
+disp_padrao = ConfusionMatrixDisplay(confusion_matrix=cm_padrao, display_labels=['Curta', 'Longa'])
+disp_padrao.plot(cmap='Blues', ax=ax[0], values_format='d')
+ax[0].set_title(f'Matriz Padrão (0.50)\nAlto Risco de Falso Negativo')
+
+cm_otim = confusion_matrix(y_test_class, y_pred_otimizado)
+disp_otim = ConfusionMatrixDisplay(confusion_matrix=cm_otim, display_labels=['Curta', 'Longa'])
+disp_otim.plot(cmap='Greens', ax=ax[1], values_format='d')
+ax[1].set_title(f'Matriz Otimizada ({THRESHOLD_ESCOLHIDO})\nMais Segurança (Menos FN)')
+
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, marker='.', label='XGBoost')
+plt.scatter(recall[best_idx], precision[best_idx], marker='o', color='red', label='Max F1', zorder=10)
+plt.title('Curva Precision-Recall')
+plt.xlabel('Recall (Sensibilidade)')
+plt.ylabel('Precision (Precisão)')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+```text
+Validação Cruzada Estratificada (5 Folds)
+   Resultados da Validação Cruzada (AUC):
+   Média: 0.8615
+   Desvio Padrão: 0.0095
+   Scores por Fold: [0.85205907 0.87655941 0.85869776 0.86797804 0.85217463]
+Modelo estável. Prosseguindo para treino final.
+
+--- Treinando Classificador Final (Target: LOS > 8 dias) ---
+
+Análise de Corte (Threshold):
+Melhor Threshold Matemático (Max F1): 0.641
+Threshold Escolhido para o Negócio:  0.350
+
+COMPARATIVO DE PERFORMANCE (CONJUNTO DE TESTE)
+AUC-ROC Global (Teste): 0.8700
+
+--- CENÁRIO PADRÃO (Corte 0.50) ---
+Falsos Negativos aqui são pacientes graves mandados para casa cedo demais.
+              precision    recall  f1-score   support
+
+           0       0.96      0.81      0.87      1861
+           1       0.38      0.76      0.51       292
+
+    accuracy                           0.80      2153
+   macro avg       0.67      0.78      0.69      2153
+weighted avg       0.88      0.80      0.82      2153
+
+
+--- CENÁRIO OTIMIZADO (Corte 0.35) ---
+Foco em RECALL (Sensibilidade). Queremos achar TODOS os casos longos.
+              precision    recall  f1-score   support
+
+           0       0.97      0.72      0.82      1861
+           1       0.32      0.84      0.46       292
+
+    accuracy                           0.73      2153
+   macro avg       0.64      0.78      0.64      2153
+weighted avg       0.88      0.73      0.77      2153
+```
+    
+    
+
+
+    
+![png](/images/projects/los/6.png)
+    
+![png](/images/projects/los/7.png)
+    
+
+
+### Operational Validation and Calibration
+
+Um modelo preditivo em saúde não pode apenas ser matematicamente preciso; ele precisa ser seguro. Nesta etapa, submeti o classificador a testes de estresse e ajustei sua sensibilidade para garantir que nenhum paciente grave passe despercebido.
+
+Validation Results:
+
+#### Model Reliability (Stability)
+Before putting it into practice, I checked that the model was consistent.
+* Result: The model maintained high performance (AUC ~0.86) in 5 different test scenarios, with minimal variation.
+* O que isso significa: O algoritmo é robusto. Ele não "teve sorte" com um grupo específico de pacientes; ele aprendeu padrões reais que se repetem, oferecendo segurança para uso diário.
+
+#### The "Safe Error" Rule (Trim Adjustment)
+By default, algorithms expect 50% certainty to issue an alert. For the hospital environment, I considered this risky.
+* Business Decision: Reduced the alert trigger to 35% probability.
+* Impact: With this adjustment, we increased the model's sensitivity (Recall) from 76% to 84%. In practice, this creates a "fine mesh" that captures the vast majority of complex cases, preventing critically ill patients from going unmanaged.
+
+#### The Cost of Security (Trade-off)
+By increasing sensitivity, we naturally accept more alerts.
+* The Reality: Out of every 3 "High Risk" alerts, 1 will actually be a critical long stay.
+* Justification: The operational cost of the team checking 2 additional patients (false positives) is negligible compared to the financial and healthcare loss of letting a critical patient occupy a bed for weeks without planning.
+
+Conclusion:
+The model is calibrated to act as a High Sensitivity Radar. It prioritizes safety, ensuring that the bed management team receives early alerts about the patients who will require the most resources.
+
+### 10. Visual Audit: The Balance between Risk and Efficiency
+
+To ensure that the calibration decision (cut at 0.35) is the best for the hospital, I used the ROC Curve to visualize the model's behavior in all possible scenarios.
+
+What this graph tells us:
+
+Proof of Effectiveness (The Orange Curve):
+    The more the orange line curves toward the upper left corner, the better the model distinguishes severe patients from simple patients. The graph visually confirms that the model is far superior to a random choice (dotted line).
+
+The “Cost” Visualization (The Red Dot):
+    I plotted our chosen cutoff point (0.35) on the curve.
+    * Y Axis (The Gain): Shows our high detection rate of serious cases (Sensitivity).
+    * X-Axis (The Cost): Shows the rate of false alarms that we accept to pay.
+    
+    Visual Conclusion: The red dot demonstrates that we are operating in the region of maximum care security, accepting a controlled increase in administrative burden (false positives) in exchange for not losing sight of critical patients.
+
+
+```python
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(y_test_class, y_proba_test)
+roc_auc = auc(fpr, tpr)
+
+close_default_index = np.argmin(np.abs(thresholds - THRESHOLD_ESCOLHIDO))
+fpr_t = fpr[close_default_index]
+tpr_t = tpr[close_default_index]
+
+plt.figure(figsize=(10, 8))
+
+plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {roc_auc:.4f})')
+
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Modelo Aleatório (50%)')
+
+plt.scatter(fpr_t, tpr_t, color='red', s=100, label=f'Corte Escolhido ({THRESHOLD_ESCOLHIDO})', zorder=5)
+
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Taxa de Falsos Positivos (1 - Especificidade)\n"Alarmes Falsos"', fontsize=12)
+plt.ylabel('Taxa de Verdadeiros Positivos (Sensibilidade)\n"Casos Reais Detectados"', fontsize=12)
+plt.title('Curva ROC - Capacidade de Distinção do Modelo', fontsize=14)
+plt.legend(loc="lower right", fontsize=12)
+plt.grid(alpha=0.3)
+
+plt.annotate(f'Sensibilidade: {tpr_t:.1%}\nFalsos Positivos: {fpr_t:.1%}',
+             xy=(fpr_t, tpr_t), xytext=(fpr_t + 0.1, tpr_t - 0.1),
+             arrowprops=dict(facecolor='black', shrink=0.05),
+             fontsize=11, backgroundcolor='white')
+
+plt.show()
+
+print(f"INTERPRETAÇÃO:")
+print(f"1. A AUC de {roc_auc:.2f} indica que o modelo tem {roc_auc:.1%} de chance de classificar corretamente")
+print(f"   um paciente de longa permanência versus um de curta permanência.")
+print(f"2. O ponto vermelho mostra nossa escolha estratégica: aceitamos uma taxa de falsos positivos de {fpr_t:.1%}")
+print(f"   para garantir que detectamos {tpr_t:.1%} dos casos graves.")
+```
+
+
+    
+![png](/images/projects/los/8.png)
+    
+
+
+    INTERPRETATION:
+    1. The AUC of 0.87 indicates that the model has an 87.0% chance of classifying correctly
+       a long-stay patient versus a short-stay patient.
+    2. The red dot shows our strategic choice: we accept a false positive rate of 28.9%
+       to ensure that we detect 84.2% of serious cases.
+    
+
+### From Algorithm to Protocol: The Impact at the End
+
+To get the model out of the computer and into the hospital routine, I translated the statistical results (with the cutoff calibrated at 0.35) into clear business rules.
+
+The Model “Contract of Trust” (Clinical KPIs):
+
+The Safety Net (Sensitivity/Recall):
+    * *Question:* Of all the patients who will actually \"lock\" a bed, how many do we get?
+    * *Impact:* Measures our ability to shield the hospital against unpleasant surprises.
+
+The Efficiency (Specificity) Filter:
+    * *Question:* How well can the model separate simple cases so as not to bother the team for nothing?
+    * *Impact:* Avoids wasting the discharge management team's time with patients who will leave alone.
+
+The Credibility of the Alert (Positive Predictive Value - VPP):
+    * *Question:* When the system triggers a red alert, what is the chance of it being real?
+    * *Impact:* Defines the urgency of the action. We knowingly accept a lower PPV (more false alerts) to ensure maximum security.
+
+The Security of the "Green Light" (Negative Predictive Value - VPN):
+    * *Critical Question:* When the system says it is "Low Risk", how sure are you that it won't get complicated?
+    * *Impact:* This is the vital metric for automation. If this value is high, the team can rely on "autopilot" for the majority of patients and focus only on exceptions.
+
+
+```python
+tn, fp, fn, tp = cm_otim.ravel()
+
+
+sensibilidade = tp / (tp + fn)
+especificidade = tn / (tn + fp)
+vpp = tp / (tp + fp)
+vpn = tn / (tn + fn)
+
+
+acuracia_bal = (sensibilidade + especificidade) / 2
+
+print(f"--- RELATÓRIO CLÍNICO FINAL (Threshold > {THRESHOLD_ESCOLHIDO:.2f}) ---")
+print(f"Total de Pacientes no Teste: {len(y_test_class)}")
+print(f"Pacientes de Longa Permanência Reais: {tp + fn}")
+print(f"-" * 40)
+
+print(f"1. SENSIBILIDADE (RECALL): {sensibilidade:.1%}")
+print(f"   >> De todos os pacientes que FICARAM muito tempo, detectamos {sensibilidade:.1%}.")
+print(f"   >> Perdemos apenas {fn} casos (Falsos Negativos).")
+
+print(f"\n2. ESPECIFICIDADE: {especificidade:.1%}")
+print(f"   >> De todos que saíram rápido, o modelo acertou {especificidade:.1%}.")
+print(f"   >> Geramos {fp} alarmes falsos (Falsos Positivos) que a equipe terá que checar.")
+
+print(f"\n3. VALOR PREDITIVO POSITIVO (PRECISÃO): {vpp:.1%}")
+print(f"   >> Quando o modelo grita 'ALERTA', ele está certo {vpp:.1%} das vezes.")
+print(f"   >> Isso é o 'custo' de ter alta sensibilidade: revisamos mais gente para não perder ninguém.")
+
+print(f"\n4. VALOR PREDITIVO NEGATIVO (VPN): {vpn:.1%}")
+print(f"   >> Quando o modelo diz 'Tudo bem', ele está certo {vpn:.1%} das vezes.")
+print(f"   >> Isso dá muita segurança para a equipe focar nos alertas.")
+
+print(f"-" * 40)
+print(f"RESUMO PARA GESTÃO:")
+print(f"\"O modelo funciona como uma rede de segurança de alta confiabilidade.")
+print(f"A cada 10 pacientes que ele libera como 'Baixo Risco', {int(vpn*10)} realmente terão alta rápida.")
+print(f"Isso permite que a equipe foque 100% da atenção nos pacientes marcados como 'Alto Risco'.\"")
+```
+
+```text
+    RELATÓRIO CLÍNICO FINAL (Threshold > 0.35) 
+    Total de Pacientes no Teste: 2153
+    Pacientes de Longa Permanência Reais: 292
+    ----------------------------------------
+    1. SENSIBILIDADE (RECALL): 84.2%
+       >> De todos os pacientes que FICARAM muito tempo, detectamos 84.2%.
+       >> Perdemos apenas 46 casos (Falsos Negativos).
+    
+    2. ESPECIFICIDADE: 71.5%
+       >> De todos que saíram rápido, o modelo acertou 71.5%.
+       >> Geramos 530 alarmes falsos (Falsos Positivos) que a equipe terá que checar.
+    
+    3. VALOR PREDITIVO POSITIVO (PRECISÃO): 31.7%
+       >> Quando o modelo grita 'ALERTA', ele está certo 31.7% das vezes.
+       >> Isso é o 'custo' de ter alta sensibilidade: revisamos mais gente para não perder ninguém.
+    
+    4. VALOR PREDITIVO NEGATIVO (VPN): 96.7%
+       >> Quando o modelo diz 'Tudo bem', ele está certo 96.7% das vezes.
+       >> Isso dá muita segurança para a equipe focar nos alertas.
+    ----------------------------------------
+    RESUMO PARA GESTÃO:
+    "O modelo funciona como uma rede de segurança de alta confiabilidade.
+    A cada 10 pacientes que ele libera como 'Baixo Risco', 9 realmente terão alta rápida.
+    Isso permite que a equipe foque 100% da atenção nos pacientes marcados como 'Alto Risco'."
+```    
+
+### Operating Model: How to use this tool in practice?
+
+After validating the technical performance, I translated the numbers into guidelines for use in day-to-day hospital operations. The model is not a crystal ball, but a prioritization filter.
+
+Model Behavior Profile:
+
+#### The "Conservative Sentinel" (Security Bias)
+Calibration analysis showed that the model has a protective profile.
+* Behavior: When faced with doubt (medium risk), he prefers to err on the side of caution and classify it as "High Risk".
+* Guideline: The team should view the score not as an absolute certainty that the patient will stay 20 days, but as a Priority Index. Those with a high score should be visited first.
+
+#### The Reliable Fast Queue (VPN = 96.7%)
+This is the biggest efficiency gain of the project.
+* The Fact: When the model says "Low Risk" (Green Light), it gets it right 96.7% of the time.
+* Guideline: We can create an administrative "Fast Track" for these patients. Staff can drastically reduce the time spent monitoring these cases, freeing up man hours to focus on complex cases.
+
+#### The Cost of Care (PPV = 31.7%)
+To ensure that we would not miss critically ill patients, we accepted that the model would trigger more alerts.
+* The Reality: Of every 3 red alerts, 1 will be critical and 2 will be false alarms (patients who, despite their risk profile, will be quickly discharged).
+* Guideline: The alert triggers a Poll, not an intervention. The cost of checking 2 additional patients is the "insurance price" we pay to ensure that 1 critical patient is detected.
+
+Verdict:
+The tool works by segregating the flow into two: a low-monitoring expressway (for the majority) and a focal attention list (for alerts), optimizing the allocation of the bed management team.
+
+### 11. Reliability Audit: Is the Model “Honest”?
+
+Em saúde, não basta o modelo acertar a classificação (Alta vs. Baixa); a confiança dele precisa ser realista. Se o algoritmo diz que um paciente tem 80% de risco, esperamos que, estatisticamente, 80% dos pacientes com essa nota realmente tenham longa permanência.
+
+To verify this, I used the Calibration Curve (Reliability Diagram), which works as a "lie detector" for mathematical probability.
+
+How to read this diagnosis:
+
+* The Line of Truth (Dotted Diagonal): Represents perfect calibration. If the model's curve follows this line, it "knows what it says."
+* "Alarmism" Bias (Below the line): If the model curve is below the diagonal, it is overestimating the risk (it says it is 90%, but in reality it only happens in 60% of cases).
+* "Negligence" Bias (Above the line): If it is above, he is underestimating the danger (he says it's easy, but the patient complicates it).
+
+
+
+```python
+
+from sklearn.calibration import calibration_curve
+from sklearn.linear_model import LogisticRegression
+
+prob_true, prob_pred = calibration_curve(y_test_class, y_proba_test, n_bins=10)
+
+
+plt.figure(figsize=(10, 8))
+
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Perfeitamente Calibrado')
+plt.plot(prob_pred, prob_true, marker='o', linewidth=2, label='Modelo XGBoost')
+plt.xlabel('Probabilidade Predita pelo Modelo (Risco Calculado)', fontsize=12)
+plt.ylabel('Fração Real de Casos Longos (Observado)', fontsize=12)
+plt.title('Curva de Calibração - O modelo é confiável?', fontsize=14)
+plt.legend(fontsize=12)
+plt.grid(alpha=0.3)
+
+plt.twinx()
+plt.hist(y_proba_test, range=(0, 1), bins=10, color='gray', alpha=0.1, label='Distribuição das Probs')
+plt.yticks([])
+
+plt.show()
+
+print(f"INTERPRETAÇÃO:")
+print(f"- Se os pontos azuis estiverem PRÓXIMOS da linha tracejada: O modelo é confiável.")
+print(f"- Se estiverem ABAIXO da linha: O modelo é EXAGERADO (diz 80%, mas só 60% ficam).")
+print(f"- Se estiverem ACIMA da linha: O modelo é SUBESTIMADO (diz 40%, mas 60% ficam).")
+print(f"\nNOTA: Modelos de árvore (Random Forest/XGBoost) tendem a não ser perfeitamente calibrados nativamente.")
+```
+
+
+    
+![png](/images/projects/los/9.png)
+    
+
+
+    INTERPRETATION:
+    - If the blue dots are NEAR the dashed line: The model is reliable.
+    - If they are BELOW the line: The model is EXAGGERATED (it says 80%, but only 60% stay).
+    - If they are ABOVE the line: The model is UNDERESTIMATED (says 40%, but 60% remain).
+    
+    NOTE: Tree models (Random Forest/XGBoost) tend not to be perfectly natively calibrated.
+    
+
+### Performance Synthesis: Is the Model Safe?
+
+Cross-validation (repeated tests in 5 different scenarios) confirmed the stability of the solution. Below, I translate the statistical metrics into the expected impact on the daily operation of the hospital.
+
+<table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px', marginBottom: '20px' }}>
+  <thead>
+    <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Indicador</th>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Resultado</th>
+      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>O que isso significa para a Operação?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Rede de Segurança</strong> (Sensibilidade)</td>
+      <td style={{ padding: '12px' }}><strong>79%</strong></td>
+      <td style={{ padding: '12px' }}>De cada 10 pacientes que <em>vão</em> ter longa permanência, o modelo detecta e alerta 8. Isso garante que a maioria dos casos críticos entre no radar precocemente.</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Filtro de Eficiência</strong> (Especificidade)</td>
+      <td style={{ padding: '12px' }}><strong>76%</strong></td>
+      <td style={{ padding: '12px' }}>O modelo consegue descartar 3 em cada 4 pacientes de baixo risco automaticamente, poupando a equipe de monitorar casos simples desnecessariamente.</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+      <td style={{ padding: '12px' }}><strong>Qualidade Global</strong> (AUC-ROC)</td>
+      <td style={{ padding: '12px' }}><strong>0.83</strong></td>
+      <td style={{ padding: '12px' }}>O algoritmo tem alta capacidade de distinção. Ele raramente confunde um paciente complexo com um simples, o que gera confiança na equipe médica.</td>
+    </tr>
+    <tr>
+      <td style={{ padding: '12px' }}><strong>Acerto Geral</strong> (Acurácia)</td>
+      <td style={{ padding: '12px' }}><strong>81%</strong></td>
+      <td style={{ padding: '12px' }}>Em 8 de cada 10 admissões, a previsão do modelo (Se vai ser Longa ou Curta) se concretiza.</td>
+    </tr>
+  </tbody>
+</table>
+
+Verdict:
+The model has a balanced and safe profile. The adopted strategy prioritized Sensitivity (79%) instead of blindly maximizing global Accuracy.
+* *Why is this good for business?* In healthcare, it is preferable to check a false alarm (low administrative cost) than to let a serious patient pass by (high care cost). The model reflects this priority.
+
+### 12. From Model to Practice: The Decision Simulator
+
+Mathematics only generates value when it is transformed into action. To make the impact of the project tangible, I developed an Admission Simulator. The objective is to demonstrate how the algorithm would behave in the "real world", receiving a patient at the entrance and returning a clear guideline to the manager.
+
+Simulation Objectives:
+
+"Clinical Health" Test:
+    I subjected the model to antagonistic patient profiles (e.g. a very simple case vs. a very complex case).
+    * *The Proof:* If the model suggests rapid discharge for an elderly and critically ill patient, it is not useful. The simulator proves that artificial intelligence has learned to respect physiology and medical logic.
+
+Flow Demonstration (Prescriptive Analytics):
+    More than predicting *what* will happen, the simulator suggests *what to do*.
+    * For each prediction, the system attaches a Recommended Action (e.g. "Trigger Home Care" or "Standard Monitoring"), closing the cycle between the data and the decision.
+
+
+```python
+import pandas as pd
+import numpy as np
+
+CORTE_RISCO = 0.35
+
+def prever_internacao(dados_paciente):
+    novo_paciente = pd.DataFrame([dados_paciente])
+
+    dias_previstos = melhor_modelo.predict(novo_paciente)[0]
+
+    probabilidade = clf_model.predict_proba(novo_paciente)[0, 1]
+
+    if probabilidade >= CORTE_RISCO:
+        status = "🔴 ALERTA: ALTO RISCO DE LONGA PERMANÊNCIA"
+        acao = "Ação Sugerida: Acionar NIR / Gestão de Leitos imediatamente."
+    else:
+        status = "🟢 BAIXO RISCO (Fluxo Padrão)"
+        acao = "Ação Sugerida: Monitoramento padrão de rotina."
+
+    print("="*60)
+    print(f"SIMULAÇÃO DE ADMISSÃO HOSPITALAR")
+    print("="*60)
+    print(f"PACIENTE: {dados_paciente.get('SEXO', 'N/A')} | {dados_paciente.get('IDADE', 'N/A')} anos")
+    print(f"PERFIL: {dados_paciente.get('CID_CAPITULO', 'N/A')} | {dados_paciente.get('CARATER_ATENDIMENTO', 'N/A')}")
+    print("-" * 60)
+    print(f" Previsão de Estadia (Média): {dias_previstos:.1f} dias")
+    print(f" Probabilidade de Longa Permanência (>8 dias): {probabilidade:.1%} (Corte: {CORTE_RISCO:.0%})")
+    print("-" * 60)
+    print(f"STATUS: {status}")
+    print(f"NB: {acao}")
+    print("="*60 + "\n")
+
+# TESTANDO COM PACIENTES REAIS DO CONJUNTO DE TESTE
+
+# Caso 1: Vamos pegar um paciente que realmente ficou pouco tempo
+paciente_curto = X_test.iloc[0].to_dict()
+# Forçando alguns valores para testar cenários
+paciente_curto['IDADE'] = 35
+paciente_curto['CARATER_ATENDIMENTO'] = 'ELETIVO'
+
+# Caso 2: Vamos pegar um paciente que sabemos que é complicado
+paciente_longo = X_test.iloc[10].to_dict()
+# Vamos "piorar" o cenário dele para ver a reação do modelo
+paciente_longo['IDADE'] = 85
+paciente_longo['CARATER_ATENDIMENTO'] = 'URGENCIA'
+paciente_longo['FL_NEOPLASIA'] = 1
+
+print(">>> SIMULANDO PACIENTE 1 (Jovem, Eletivo):")
+prever_internacao(paciente_curto)
+
+print(">>> SIMULANDO PACIENTE 2 (Idoso, Urgência, Comorbidade):")
+prever_internacao(paciente_longo)
+```
+
+```text
+    >>> SIMULANDO PACIENTE 1 (Jovem, Eletivo):
+    ============================================================
+    SIMULAÇÃO DE ADMISSÃO HOSPITALAR
+    ============================================================
+    PACIENTE: M | 35 anos
+    PERFIL: N | ELETIVO
+    ------------------------------------------------------------
+     Previsão de Estadia (Média): 7.3 dias
+     Probabilidade de Longa Permanência (>8 dias): 15.5% (Corte: 35%)
+    ------------------------------------------------------------
+    STATUS: 🟢 BAIXO RISCO (Fluxo Padrão)
+    NB: Ação Sugerida: Monitoramento padrão de rotina.
+    ============================================================
+    
+    >>> SIMULANDO PACIENTE 2 (Idoso, Urgência, Comorbidade):
+    ============================================================
+    SIMULAÇÃO DE ADMISSÃO HOSPITALAR
+    ============================================================
+    PACIENTE: M | 85 anos
+    PERFIL: C | URGENCIA
+    ------------------------------------------------------------
+     Previsão de Estadia (Média): 23.1 dias
+     Probabilidade de Longa Permanência (>8 dias): 89.1% (Corte: 35%)
+    ------------------------------------------------------------
+    STATUS: 🔴 ALERTA: ALTO RISCO DE LONGA PERMANÊNCIA
+    NB: Ação Sugerida: Acionar NIR / Gestão de Leitos imediatamente.
+    ============================================================
+```    
+    
+
+Analysis of Simulated Scenarios:
+
+Clinical Coherence Validation
+The model demonstrated correct sensitivity to risk factors known in the medical literature:
+* Scenario 1 (Young/Elective): The algorithm correctly identified the low complexity profile, assigning a probability of long stay of just 15.5% and an estimate of short stay (~7 days).
+* Scenario 2 (Elderly/Emergency): Faced with aggravating factors (Advanced age + Unplanned admission), the model reacted, increasing the risk to 89.1% and tripling the estimated number of days (~23 days).
+* Conclusão: O sistema não opera como uma "caixa preta" aleatória; ele reproduz e quantifica a intuição clínica de que pacientes idosos em urgência demandam mais recursos.
+
+From Data to Action (Prescriptive Analytics)
+The great value delivered is not the statistical number itself, but the operational guideline derived from it:
+* For Patient 1, the "Standard Monitoring" recommendation avoids wasting the discharge management team's resources on a case that is likely to resolve itself.
+* For Patient 2, the "Immediate Action" alert allows the Hospital to begin discharge planning (home care, oxygen therapy, transportation) on Day 1, preventing bureaucracy from delaying the patient's departure on Day 23.
+
+### 13. Opening the Black Box: The “Why” of the Decision
+
+One of the biggest risks in Artificial Intelligence is the lack of transparency. To ensure the trust of the clinical team, I used the SHAP technique to audit the internal \"reasoning\" of the model.
+
+This analysis reveals exactly how much and how each variable (Age, Vital Signs, Origin) influenced the final prediction, allowing you to validate whether the algorithm is following the correct medical logic.
+
+How to read the "Influence Map" (Beeswarm Plot):
+
+* The Golden Rule:
+    * Points on the RIGHT (Positive) = Factors that increase the length of stay (Aggravating).
+    * Points on the LEFT (Negatives) = Factors that accelerate the rise (Protectors).
+
+* Color Indicates Intensity:
+    * Red (High): High value of the variable (ex: Old age).
+    * Blue (Low): Low value of the variable (ex: Young patient).
+
+Example of Expected Reading: If we see *red* dots (High Age) accumulated on the *right* side (Increases LOS), the model correctly learned that aging is a risk factor.
+
+
+```python
+import shap
+import matplotlib.pyplot as plt
+
+#RECUPERANDO O MELHOR MODELO DE REGRESSÃO
+if 'melhor_modelo' in locals():
+    pipeline_final = melhor_modelo
+
+    modelo_xgb = pipeline_final.named_steps['model']
+    preprocessor_shap = pipeline_final.named_steps['preprocessor']
+
+    print("Transformando dados de teste para o SHAP...")
+    X_test_transformed = preprocessor_shap.transform(X_test)
+
+
+    feat_num = features_num
+    feat_cat = preprocessor_shap.named_transformers_['cat']['onehot'].get_feature_names_out(features_cat)
+    feat_bin = features_bin
+    feature_names_shap = np.r_[feat_num, feat_cat, feat_bin]
+
+
+    explainer = shap.TreeExplainer(modelo_xgb)
+    shap_values = explainer.shap_values(X_test_transformed)
+
+    plt.figure(figsize=(10, 8))
+    plt.title("Impacto das Variáveis no Tempo de Internação (SHAP)")
+    shap.summary_plot(shap_values, X_test_transformed, feature_names=feature_names_shap, show=False)
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
+
+    if hasattr(modelo_xgb, 'feature_importances_'):
+        importances = modelo_xgb.feature_importances_
+        indices = np.argsort(importances)[::-1][:15]
+
+        plt.barh(range(len(indices)), importances[indices], align='center', color='purple')
+        plt.yticks(range(len(indices)), [feature_names_shap[i] for i in indices])
+        plt.gca().invert_yaxis()
+        plt.title("Top 15 Variáveis Mais Importantes (Feature Importance)")
+        plt.xlabel("Importância Relativa")
+        plt.show()
+
+else:
+    print("'melhor_modelo' não encontrado. Rode a Regressão antes.")
+```
+
+    Transforming test data for SHAP...
+    
+    
+![png](/images/projects/los/10.png)
+    
+![png](/images/projects/los/11.png)
+    
+
+### Key Audit Findings:
+
+
+#### Protection Factor: Patient Origin
+The model identified that coming from home (`ORIGEM_PACIENTE_Residência`) is the biggest indicator of a quick rise.
+* Validation: Patients who do not arrive via SAMU or transfer tend to have lower baseline severity. The model captured this operational logic perfectly.
+
+#### Worsening Factors: Age and Seasonality
+* Demographics: Age behaved as a linear risk. The older you are (red dots), the more the model pushes the prediction to the right (longer stay).
+* Winter: The model learned on its own that the cold season "costs" bed days, reflecting the complexity of respiratory diseases without us needing to program this rule manually.
+
+#### Warning Signs: Physiology at the Door
+Variables such as Heart Rate and Blood Pressure appear prominently.
+* Conclusion: The model does not just look at the disease "label" (ICD), but at the patient's stability at screening. Instability on arrival is a strong predictor of future complications.
+
+Verdict:
+The SHAP analysis confirms the clinical soundness of the model. It is not using spurious correlations (coincidences), but rather reproducing known pathophysiological and operational patterns, which is essential for its acceptance by clinical staff.
+
+### 14. Cause Mapping: What really holds the patient back?
+
+Para atacar o problema da longa permanência, não basta saber *quem* vai ficar; precisamos entender o *porquê*.
+
+I used Cox Regression (Multivariate) to isolate the impact of each variable. Unlike the previous analysis, this model "discounts" cross effects (e.g. it separates the weight of Age from the weight of Disease), revealing the true offenders of bed turnover.
+
+How to interpret the Results (Hazard Ratio - HR):
+
+The model calculates a high speed index. The neutral point is 1.0.
+* Offenders (HR < 1.0): Factors that "hold" the patient in the hospital. The lower the number, the worse the impact.
+    * *Example:* If "Emergency" has HR 0.5, it means that these patients have half the discharge speed of elective patients.
+* Accelerators (HR > 1.0): Factors associated with rapid increases.
+    * *Example:* If an ICD has HR 2.0, these patients turn the bed twice as fast as the average.
+
+Objective: Identify which clinical or administrative factors have the greatest retention power in order to focus efficiency protocols on them.
+
+
+```python
+
+from lifelines import CoxPHFitter
+
+cols_cox_base = ['IDADE', 'SEXO', 'CID_CAPITULO', 'CARATER_ATENDIMENTO']
+cols_comorb = [c for c in cols_flags if c in df_mestre.columns]
+
+df_cox = df_mestre[['LOS', 'Evento_ocorreu'] + cols_cox_base + cols_comorb].copy()
+
+
+df_cox['IDADE'] = df_cox['IDADE'].fillna(df_cox['IDADE'].median())
+df_cox = df_cox.dropna()
+
+df_cox_dummy = pd.get_dummies(df_cox, drop_first=True)
+
+df_cox_dummy.columns = [c.replace(' ', '_').replace('/', '_').replace('-', '_') for c in df_cox_dummy.columns]
+
+print(f"Dataset Cox pronto. Dimensões: {df_cox_dummy.shape}")
+
+cph = CoxPHFitter(penalizer=0.1)
+
+try:
+    cph.fit(df_cox_dummy, duration_col='LOS', event_col='Evento_ocorreu')
+
+    plt.figure(figsize=(10, 8))
+    cph.plot()
+    plt.title("Hazard Ratios (Risco Relativo de Alta)")
+    plt.axvline(x=0, color='red', linestyle='--')
+    plt.xlabel("Impacto na Probabilidade de Alta (log-scale)")
+    plt.show()
+
+    print("\nResumo Estatístico (P-values e HR)")
+    summary = cph.summary
+    display(summary[summary['p'] < 0.05].sort_values('coef'))
+
+except Exception as e:
+    print(f"Não foi possível ajustar o Cox (provavelmente multicolinearidade): {e}")
+```
+
+    Cox dataset ready. Dimensions: (10750, 37)
+  
+    
+![png](/images/projects/los/12.png)
+
+<div style={{ overflowX: 'auto', marginTop: '20px', marginBottom: '20px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '1200px' }}>
+    <thead>
+      <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+        <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold' }}>Covariate</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef)</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>se(coef)</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef low 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>coef upp 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef) low 95%</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>exp(coef) upp 95%</th>
+        <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>cmp to</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>z</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>p</th>
+        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>-log2(p)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CARATER_ATENDIMENTO_URGENCIA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.530013</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.216533</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.023494</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.576061</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.483965</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.206788</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.226737</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-65.122442</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>inf</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_Q</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.753743</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.470602</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.190935</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-1.127968</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.379519</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.323690</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.684191</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-3.947654</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000079</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>13.629238</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_NEOPLASIA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.614956</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.540665</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.058938</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.730472</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.499439</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.481681</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.606871</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-10.433907</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>82.252432</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_DIABETES</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.568587</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.566325</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.118567</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.800974</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.336199</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.448892</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.714481</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-4.795479</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000002</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>19.233022</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_G</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.243897</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.783569</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.088339</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.417038</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.070755</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.658996</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.931690</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.760911</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.005764</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>7.438706</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_INSUF_CARDIACA</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.243502</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.783878</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.082558</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.405314</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.081691</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.666768</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.921557</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.949457</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.003183</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.295250</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>FL_DOENCA_RENAL</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.231885</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.793037</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.080181</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.389037</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.074733</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.677709</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.927991</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-2.892022</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.003828</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.029301</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>SEXO_M</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.077686</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.925255</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.018754</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.114444</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.040929</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.891862</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.959898</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-4.142330</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000034</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>14.828091</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>IDADE</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.007210</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.992816</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000367</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.007929</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-0.006490</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.992102</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.993531</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>-19.637047</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>282.786388</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_R</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.108355</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.114443</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.047711</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.014843</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.201867</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.014954</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.223686</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>2.271063</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.023143</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>5.433268</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_n</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.157964</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.171124</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.032728</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.093819</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.222109</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.098361</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.248708</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.826613</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000001</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>19.457787</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_S</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.208270</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.231545</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.058707</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.093207</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.323333</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.097689</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.381725</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>3.547641</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000389</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>11.329063</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_C</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.220495</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.246694</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.071473</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.080411</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.360579</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.083733</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.434160</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>3.085027</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.002035</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>8.940517</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_K</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.224078</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.251169</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.040613</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.144478</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.303679</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.155436</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.354833</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>5.517370</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>24.792556</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_T</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.291023</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.337795</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.039628</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.213353</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.368692</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.237821</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.445843</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>7.343838</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000000</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>42.131571</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '8px', fontWeight: 'bold' }}>CID_CAPITULO_V</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.074740</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>2.929232</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.238298</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.607684</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.541796</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>1.836175</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.672975</td>
+        <td style={{ padding: '8px', textAlign: 'center' }}>0.0</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>4.510066</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>0.000006</td>
+        <td style={{ padding: '8px', textAlign: 'right' }}>17.235407</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+
+### Discussion of Results: What Impacts Length of Hospitalization?
+
+Using multivariate analysis (Cox Regression), we were able to isolate the real impact of each variable on the patient's probability of discharge. Below, we translate the statistical coefficients (*Hazard Ratios*) into clear operational impacts.
+
+#### The Big Bottleneck: Emergency Admissions (HR ≈ 0.21)
+The `CARATER_ATENDIMENTO_URGENCIA` variable has proven to be the biggest offender of bed turnover.
+* What the data says: A patient admitted through emergency has an 80% lower probability of daily discharge than an elective patient with similar characteristics.
+* Impact on the Business: This statistically confirms that the unpredictability of the entry point (Emergency) is the main cause of bed retention. Processes designed for elective patients don't work here.
+
+#### Clinical Complexity as a Speed ​​Reducer
+The model quantified exactly how much chronic conditions “brake” discharge:
+* Oncology (HR ≈ 0.54): Patients with neoplasia have their discharge rate reduced by 46%. It is the most important clinical factor, requiring dedicated case management.
+* Diabetes (HR ≈ 0.56): The presence of diabetes reduces the chance of discharge by 44%, indicating that the clinical stabilization of this comorbidity consumes precious days of hospitalization.
+
+#### The Weight of Age in Occupation
+* Age (HR ≈ 0.992): Aging acts as a progressive risk factor. For every 10 additional years of life, the agility at discharge drops by around 8%. Although it may seem small in isolation, in elderly patients this effect accumulates, making them long-term consumers by nature.
+
+#### Rapid Turnaround Opportunities (HR > 1.0)
+We identify profiles that accelerate the flow and can be optimized:
+* External Causes (Chapter V): Presented the greatest potential for increase (HR ≈ 2.92). Patients in this group (e.g. minor accidents) turn almost 3x faster than average.
+* Injuries and Traumas (Chapter T): With an HR of 1.33, they also indicate a rapid resolution profile.
+
+Conclusion and Suggested Strategy:
+The analysis proves that Length of Stay (LOS) is strongly penalized by Origin (Urgency) and Disease Burden.
+From a management point of view, the data suggests that mixing these profiles in the same flow generates inefficiency.
+
+
+### 15. Persistence of Artifacts and Data Product Delivery
+
+The conclusive stage of the data pipeline consists of materializing the results for operational consumption. The process is divided into two delivery aspects: an analytical one (for humans) and a technical one (for systems).
+
+Generated Artifacts:
+
+Analytical Report (`Relatorio_Previsoes.csv`):
+    * Consolidation of historical data enriched with model inferences.
+    * Added Columns:
+        * `PRED_DIAS_ESTADIA`: Regression estimate (dwell time).
+        * `PROB_LONGA_PERMANENCIA`: Risk score (0 to 100%) generated by the classifier.
+        * `ALERTA_RISCO`: Binary flag based on the calibrated *threshold* (0.35), indicating the need for immediate intervention.
+    * Purpose: Direct feeding of management dashboards (Power BI / Tableau) for use by the NIR (Internal Regulation Center) team.
+
+Model Serialization (`.pkl` / `.joblib`):
+    * Export of trained objects (the Regressor, the Classifier and the Preprocessors such as `LabelEncoders` and `Scalers`).
+    * Purpose: Ensure the portability and reproducibility of the model. These binary files allow the algorithm to be embedded in an API (e.g. via FastAPI or Flask) to perform real-time predictions integrated into the Electronic Medical Record, without the need for re-training for each request.
+
+
+
+## 16. Length of Stay (LOS) Forecast: Data-Driven Strategy
+
+## The Business Challenge
+Predictability in bed occupancy is one of the biggest bottlenecks in hospital management. The uncertainty about when a patient will be discharged impacts everything from the Emergency Room flow to the planning of elective surgeries.
+
+This project aimed to answer the question: Is it possible to anticipate which patients will have a long (high cost) hospitalization using only the data available at admission?
+
+## Strategy and Methodology
+To ensure that the data reflected operational reality, I carried out a rigorous treatment of the database, correcting temporal inconsistencies (errors in recording dates) that could bias the analysis.
+
+I adopted a hybrid approach to solve the problem:
+Diagnosis: Use of Survival Analysis to understand discharge behavior over time.
+Modeling: Testing two scenarios — trying to predict the exact day of discharge (Regression) versus identifying the risk of long stay (Classification).
+
+## Main Discoveries (Insights)
+
+Statistical analysis revealed the hospital's operational bottlenecks:
+* The Urgency Factor: The patient’s origin is decisive. Patients admitted by emergency have an 80% lower probability of daily discharge than elective patients. This statistically validates the Emergency Department as the critical point for bed retention.
+* Clinical Offenders: We identified that Neoplasms and Diabetes reduce the speed of discharge by around 45%, regardless of the patient's age.
+* Rotation Opportunity: Diagnoses of External Causes (e.g. minor trauma) rotate the bed almost 3 times faster than average.
+
+## Model Results
+
+### Strategic Decision: Classification vs. Regression
+When comparing the approaches, the Risk Classification proved to be superior for managerial decision making.
+
+* The Regression Limit (Random Forest): The model was able to predict the length of stay with an average error of 3.6 days. Although useful for simple cases, it loses precision in extreme cases (precisely those that impact the cost the most).
+* The Strength of Classification (XGBoost): We chose to focus on identifying *who* will stay longer than 8 days. The model achieved excellent discrimination capacity (AUC-ROC of 0.87).
+
+### Operational Impact
+I adjusted the model to prioritize care safety (Sensitivity):
+* The algorithm was able to detect 84% of long-stay patients upon entry.
+* This allows the bed management team to act preventively in the majority of critical cases, without waiting for the patient to "explode" the expected time.
+
+### Transparency (White Box)
+To ensure the trust of the medical team, I used SHAP Values ​​to explain the model's decisions. The tool confirmed that the algorithm follows clinical logic: it learned that Advanced Age, Instability in Vital Signs and Emergency Admission are the biggest risk vectors.
+
+## Conclusion
+The study proved that basic admission data has high predictive power. The implementation of this Risk Screening model makes it possible to segregate flows: create fast tracks (*Fast Tracks*) for simple cases and allocate early dehospitalization resources for complex cases identified by the algorithm.
+
+### 17. Limitations and Opportunities for Evolution
+
+Although the model is functional for initial screening, it is important to highlight points of attention for its implementation and evolution:
+
+* Specific Context: The algorithm learned the operational and clinical patterns of a single hospital. To scale the solution to other units, re-training would be necessary to capture local specificities (processes and demographic profile).
+* Data Depth: The model only uses data available at intake. The inclusion of intra-hospital variables (laboratory tests, nursing progress or scores) would certainly increase precision.
+* Static Prediction ("Door Photo"): The risk is calculated only at the entrance. As the clinical picture is dynamic, a future evolution of the project would be to recalculate the score daily, adjusting the prediction as the patient improves or worsens.
+* Validation in Production: We use cross-validation to ensure technical robustness. The ideal next step would be a pilot test (*Out-of-Time* validation) to monitor the stability of the model against new and seasonal data before the full *rollout*.

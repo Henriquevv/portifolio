@@ -1,0 +1,86 @@
+---
+title: "Discord Payment Management Bot"
+publishedAt: "2025-11-20"
+summary: "Complete automation for controlling subscriptions shared on Discord, including financial calculation, notifications, history, integration with Google Drive and member management."
+images:
+  - "/images/projects/bot-pagamentos/dashboard.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Business Analyst"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+link: "https://github.com/Henriquevv/bot_discord"
+---
+
+## Overview
+
+**Payment Management Bot** was developed to automate the organization of shared subscriptions within Discord servers.  
+The system replaces manual tracking performed through individual messages with a complete flow: automatic calculation of amounts due, payment records, monthly history, receipt delivery, Google Drive synchronization, and pending-payment alerts.
+
+The project arose from the need to manage a subscription divided between several members, ensuring transparency and reducing human errors in the billing process.
+
+---
+
+## Architecture and Stack
+
+The solution was designed to run continuously and reliably, with cloud-based data persistence:
+
+- **Language:** Python 3.13  
+- **Discord Bot:** Official Library `discord.py`  
+- **Data Storage:** Google Drive (automatic synchronization of records and receipts)  
+- **Local Persistence:** State files and system logs  
+- **Automation:** Internal schedules for daily notifications and dollar exchange rate updates  
+- **Infrastructure:** Continuous process running in a Linux environment using system services  
+
+The main focus of the architecture was to ensure reliability, fault tolerance and traceability of payments.
+
+---
+
+## Main Features
+
+### 1. Automatic Subscription Calculation  
+The bot updates the dollar rate, calculates the total subscription value and automatically divides it among registered members.  
+Displays the individual value, the total and the due date in a single command.
+
+### 2. Payment and Receipt Record  
+Users can register that they have made the payment, including sending proof.  
+The bot automatically synchronizes files with Google Drive, keeping the payment history organized.
+
+### 3. Monthly History and Current Status  
+The system maintains an individual history per month for each member, allowing quick queries on late or completed payments.
+
+### 4. Member Management  
+Administrators can add, remove, link accounts, and set up automatic payment for specific users.
+
+### 5. Automatic Notifications  
+The bot sends periodic messages with payment reminders, overdue alerts and registration confirmations.  
+This way, all members remain aligned throughout the month.
+
+---
+
+## Challenges and Solutions
+
+The biggest challenge was ensuring that the system was simple for users, but internally robust.  
+Some critical points:
+
+### File Sync on Google Drive  
+Recording vouchers and ensuring consistency between local data and the shared folder required fault-tolerant synchronization logic.  
+The solution included integrity validation, timestamps and logs for auditing.
+
+### Status and History Control  
+To avoid inconsistencies, it was necessary to create a clear structure that separated current month data, historical data and individual user settings.
+
+### Notification Automation  
+Notifications needed to occur daily and without depending on third parties.  
+The solution was to implement an asynchronous loop with error tolerance and last execution recording.
+
+---
+
+## Impact and Results
+
+The bot brought organization and transparency to the monthly cost division process:
+
+- Significant reduction in manual errors when confirming payments  
+- Centralized and trackable history of every month  
+- Processes that previously depended on informal arrangements are now automated  
+- Greater confidence and predictability in subscription management  

@@ -12,6 +12,11 @@ export default async function sitemap() {
     lastModified: post.metadata.publishedAt,
   }));
 
+  const englishWorks = getPosts(["src", "content", "en", "work", "projects"]).map((post) => ({
+    url: `${baseURL}/en/work/${post.slug}`,
+    lastModified: post.metadata.publishedAt,
+  }));
+
   const activeRoutes = Object.keys(routesConfig).filter(
     (route) => routesConfig[route as keyof typeof routesConfig],
   );
@@ -21,5 +26,10 @@ export default async function sitemap() {
     lastModified: new Date().toISOString().split("T")[0],
   }));
 
-  return [...routes, ...blogs, ...works];
+  const englishRoutes = ["/en", "/en/work"].map((route) => ({
+    url: `${baseURL}${route}`,
+    lastModified: new Date().toISOString().split("T")[0],
+  }));
+
+  return [...routes, ...blogs, ...works, ...englishRoutes, ...englishWorks];
 }
