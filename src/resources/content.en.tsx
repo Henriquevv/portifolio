@@ -5,7 +5,7 @@ const person: Person = {
   firstName: "Henrique",
   lastName: "Valentim",
   name: `Henrique Valentim`,
-  role: "Business Analyst",
+  role: "Data & Automation Analyst",
   avatar: "/images/avatar.jpg",
   email: "henriquevalentimbastos@hotmail.com",
   location: "America/Maceio", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
@@ -53,8 +53,8 @@ const home: Home = {
   image: "/images/og/home.jpg",
   label: "Home",
   title: `${person.name} | Portfolio`,
-  description: `Professional portfolio of ${person.name}, Data and Business Intelligence Analyst`,
-  headline: <>Turning data into strategic insights and decisions</>,
+  description: `Professional portfolio of ${person.name}, Data & Automation Analyst`,
+  headline: <>Data, automation, and applied AI for smarter operations</>,
   featured: {
     display: false,
     title: (
@@ -70,14 +70,8 @@ const home: Home = {
   },
   subline: (
     <>
-      I'm Selene, a design engineer at{" "}
-      <Logo
-        dark
-        icon="/trademarks/wordmark-dark.svg"
-        style={{ display: "inline-flex", top: "0.25em", marginLeft: "-0.25em" }}
-      />
-      , where I craft intuitive
-      <br /> user experiences. After hours, I build my own projects.
+      Data & Automation Analyst with experience in SQL, Python, BigQuery, Power BI, and n8n.
+      <br /> I turn operational processes into reliable, integrated, data-driven workflows.
     </>
   ),
 };
@@ -103,13 +97,12 @@ const about: About = {
     title: "Summary",
     description: (
       <>
-        Data professional working as a Business Analyst, with experience in Business Intelligence, SQL, 
-        ETL, data processing and analysis, automation, and data visualization.
+        Data & Automation Analyst with experience in SQL, Python, BigQuery, Power BI, and n8n automation pipelines.
         <br /><br />
-        I work directly on building dashboards, defining KPIs, extracting data, and modeling data to support decision-making.
-        I have strong experience in operational and healthcare analyses, ensuring the integrity and standardization of corporate metrics.
+        My work spans pipeline reliability and data modeling, executive dashboards, cross-system integrations, and applied AI solutions for operations.
+        I automate processes, validate and consolidate data, define KPIs, and support decision-making.
         <br /><br />
-        Interested in Data Science, Data Engineering, AI, and Machine Learning.
+        I have experience in support and content operations as well as operational and healthcare analytics, collaborating with international stakeholders in English.
       </>
     ),
   },
@@ -118,8 +111,20 @@ const about: About = {
     title: "Professional Experience",
     experiences: [
       {
+        company: "Uproot Clean USA",
+        timeframe: "Apr 2026 - Present",
+        role: "Data & Automation Analyst",
+        achievements: [
+          <>Configure, optimize, and automate order and shipping-status processes using AI-generated responses, increasing automated responses to 40% of total volume.</>,
+          <>Build n8n pipelines for validation, data cross-checking, and migration across platforms, with proactive notifications for critical operational events.</>,
+          <>Model BigQuery tables and SQL queries to consolidate operational data, with Metabase visualizations supporting decision-making.</>,
+          <>Collaborate with international stakeholders in English to analyze processes, identify automation opportunities, and design scalable solutions.</>,
+        ],
+        images: [],
+      },
+      {
         company: "Rede Primavera de Saúde",
-        timeframe: "Oct 2025 - Present",
+        timeframe: "Oct 2025 - Mar 2026",
         role: "Business Analyst I",
         achievements: [
           <>Built strategic Power BI dashboards (DAX, Power Query) focused on operational, healthcare, and financial KPIs.</>,
@@ -159,50 +164,57 @@ const about: About = {
     title: "Technical Skills",
     skills: [
       {
-        title: "Business Intelligence",
+        title: "Automation & Applied AI",
         description: (
           <>
-            Transforming raw data into visual and strategic insights to support executive and operational decision-making.
+            Automating operational processes, integrating systems, and building AI-assisted workflows that reduce manual work and scale operations.
           </>
         ),
         tags: [
-          { name: "Power BI", icon: "rocket" }, // Suggested icon
-          { name: "DAX", icon: "code" },
-          { name: "Power Query", icon: "grid" },
-          { name: "ETL", icon: "arrowRight" },
-          { name: "Data Modeling", icon: "grid" },
+          { name: "n8n", icon: "rocket" },
+          { name: "REST APIs", icon: "globe" },
+          { name: "GraphQL", icon: "code" },
+          { name: "Webhooks", icon: "arrowRight" },
+          { name: "AI / LLMs", icon: "sparkle" },
         ],
         images: [],
       },
       {
-        title: "SQL & Databases",
+        title: "Data & Analytics",
         description: (
           <>
-            Advanced data manipulation, performance optimization, and information extraction in complex database environments.
+            Extracting, modeling, and visualizing data for operational analysis and executive decision-making.
           </>
         ),
         tags: [
-          { name: "OracleSQL", icon: "database" }, // Suggested icon
+          { name: "BigQuery", icon: "database" },
+          { name: "Metabase", icon: "grid" },
+          { name: "Power BI", icon: "rocket" },
+          { name: "DAX", icon: "code" },
+          { name: "Power Query", icon: "grid" },
+          { name: "OracleSQL", icon: "database" },
           { name: "PostgreSQL", icon: "database" },
           { name: "SQL Server", icon: "database" },
           { name: "MySQL", icon: "database" },
-          { name: "Tuning", icon: "eye" },
         ],
         images: [],
       },
       {
-        title: "Python & Development",
+        title: "Data Engineering & Machine Learning",
         description: (
           <>
-            Developing automation scripts, APIs for systems integration, and data engineering pipelines.
+            Building pipelines, data quality and lineage, APIs, and predictive models for operational problems.
           </>
         ),
         tags: [
-          { name: "Python", icon: "python" }, // Using a generic code icon if a Python icon is unavailable
+          { name: "Python", icon: "python" },
           { name: "Pandas", icon: "grid" },
           { name: "FastAPI", icon: "globe" },
-          { name: "Automation", icon: "rocket" },
-          { name: "Git", icon: "github" },
+          { name: "XGBoost", icon: "chart" },
+          { name: "SHAP", icon: "chart" },
+          { name: "Lifelines", icon: "chart" },
+          { name: "ETL", icon: "arrowRight" },
+          { name: "Data Quality", icon: "check" },
         ],
         images: [],
       },

@@ -5,7 +5,7 @@ const person: Person = {
   firstName: "Henrique",
   lastName: "Valentim",
   name: `Henrique Valentim`,
-  role: "Analista de Negócios",
+  role: "Analista de Dados & Automação",
   avatar: "/images/avatar.jpg",
   email: "henriquevalentimbastos@hotmail.com",
   location: "America/Maceio", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
@@ -53,8 +53,8 @@ const home: Home = {
   image: "/images/og/home.jpg",
   label: "Início",
   title: `${person.name} | Portfólio`,
-  description: `Portfólio profissional de ${person.name}, Analista de Dados e Business Intelligence`,
-  headline: <>Transformando dados em análises e decisões estratégicas</>,
+  description: `Portfólio profissional de ${person.name}, Analista de Dados e Automação`,
+  headline: <>Dados, automação e IA aplicada para operações mais inteligentes</>,
   featured: {
     display: false,
     title: (
@@ -70,14 +70,8 @@ const home: Home = {
   },
   subline: (
     <>
-      I'm Selene, a design engineer at{" "}
-      <Logo
-        dark
-        icon="/trademarks/wordmark-dark.svg"
-        style={{ display: "inline-flex", top: "0.25em", marginLeft: "-0.25em" }}
-      />
-      , where I craft intuitive
-      <br /> user experiences. After hours, I build my own projects.
+      Analista de Dados & Automação com experiência em SQL, Python, BigQuery, Power BI e n8n.
+      <br /> Transformo processos operacionais em fluxos confiáveis, integrados e orientados por dados.
     </>
   ),
 };
@@ -103,13 +97,12 @@ const about: About = {
     title: "Resumo",
     description: (
       <>
-        Profissional de Dados atuando como Técnico de Negócios, com experiência em Business Intelligence, SQL, 
-        ETL, tratamento e análise de dados, automação e visualização de dados.
+        Analista de Dados & Automação com experiência em SQL, Python, BigQuery, Power BI e pipelines de automação em n8n.
         <br /><br />
-        Trabalho diretamente com construção de dashboards, definição de KPIs, extração de dados e modelagem para tomada de decisão.
-        Tenho forte atuação em análises operacionais e assistenciais, garantindo integridade e padronização de métricas corporativas.
+        Atuo da confiabilidade e modelagem de pipelines a dashboards executivos, integrações entre sistemas e soluções de IA aplicada à operação.
+        Trabalho com automação de processos, validação e consolidação de dados, definição de KPIs e suporte à tomada de decisão.
         <br /><br />
-        Interesse em Ciência de Dados, Engenharia de Dados, IA e Aprendizado de Máquina.
+        Tenho experiência em operações de atendimento e conteúdo, análises operacionais e assistenciais, colaborando também com stakeholders internacionais em inglês.
       </>
     ),
   },
@@ -118,8 +111,20 @@ const about: About = {
     title: "Experiência Profissional",
     experiences: [
       {
+        company: "Uproot Clean USA",
+        timeframe: "Abr 2026 - Atual",
+        role: "Data & Automation Analyst",
+        achievements: [
+          <>Configuração, otimização e automação de processos de status de pedidos e envios com respostas geradas por IA, elevando a taxa de respostas automatizadas em 40% do volume total.</>,
+          <>Construção de pipelines no n8n para validação, cruzamento de informações e migração de dados entre plataformas, com notificações proativas para eventos críticos da operação.</>,
+          <>Modelagem de tabelas e consultas SQL no BigQuery para consolidação de dados operacionais, com visualizações em Metabase para suporte à tomada de decisão.</>,
+          <>Colaboração com stakeholders internacionais em inglês para analisar processos, identificar oportunidades de automação e desenhar soluções escaláveis.</>,
+        ],
+        images: [],
+      },
+      {
         company: "Rede Primavera de Saúde",
-        timeframe: "Out 2025 - Atual",
+        timeframe: "Out 2025 - Mar 2026",
         role: "Técnico de Negócios I",
         achievements: [
           <>Construção de dashboards estratégicos em Power BI (DAX, Power Query) com foco em KPIs operacionais, assistenciais e financeiros.</>,
@@ -159,50 +164,57 @@ const about: About = {
     title: "Habilidades Técnicas",
     skills: [
       {
-        title: "Business Intelligence",
+        title: "Automação & IA Aplicada",
         description: (
           <>
-            Transformação de dados brutos em insights visuais e estratégicos para apoiar a tomada de decisão executiva e operacional.
+            Automação de processos operacionais, integrações entre sistemas e fluxos assistidos por IA para reduzir trabalho manual e escalar operações.
           </>
         ),
         tags: [
-          { name: "Power BI", icon: "rocket" }, // Ícone sugerido
-          { name: "DAX", icon: "code" },
-          { name: "Power Query", icon: "grid" },
-          { name: "ETL", icon: "arrowRight" },
-          { name: "Modelagem", icon: "grid" },
+          { name: "n8n", icon: "rocket" },
+          { name: "APIs REST", icon: "globe" },
+          { name: "GraphQL", icon: "code" },
+          { name: "Webhooks", icon: "arrowRight" },
+          { name: "IA / LLMs", icon: "sparkle" },
         ],
         images: [],
       },
       {
-        title: "SQL & Bancos de Dados",
+        title: "Dados & Analytics",
         description: (
           <>
-            Manipulação avançada de dados, otimização de performance e extração de informações em ambientes de bancos de dados complexos.
+            Extração, modelagem e visualização de dados para análises operacionais e decisões executivas.
           </>
         ),
         tags: [
-          { name: "OracleSQL", icon: "database" }, // Ícone sugerido
+          { name: "BigQuery", icon: "database" },
+          { name: "Metabase", icon: "grid" },
+          { name: "Power BI", icon: "rocket" },
+          { name: "DAX", icon: "code" },
+          { name: "Power Query", icon: "grid" },
+          { name: "OracleSQL", icon: "database" },
           { name: "PostgreSQL", icon: "database" },
           { name: "SQL Server", icon: "database" },
           { name: "MySQL", icon: "database" },
-          { name: "Tuning", icon: "eye" },
         ],
         images: [],
       },
       {
-        title: "Python & Desenvolvimento",
+        title: "Engenharia de Dados & Machine Learning",
         description: (
           <>
-            Desenvolvimento de scripts de automação, APIs para integração de sistemas e pipelines de engenharia de dados.
+            Construção de pipelines, qualidade e linhagem de dados, APIs e modelos preditivos aplicados a problemas operacionais.
           </>
         ),
         tags: [
-          { name: "Python", icon: "python" }, // Usando ícone de código genérico se não tiver o do Python
+          { name: "Python", icon: "python" },
           { name: "Pandas", icon: "grid" },
           { name: "FastAPI", icon: "globe" },
-          { name: "Automação", icon: "rocket" },
-          { name: "Git", icon: "github" },
+          { name: "XGBoost", icon: "chart" },
+          { name: "SHAP", icon: "chart" },
+          { name: "Lifelines", icon: "chart" },
+          { name: "ETL", icon: "arrowRight" },
+          { name: "Data Quality", icon: "check" },
         ],
         images: [],
       },
