@@ -19,6 +19,7 @@ interface ProjectCardProps {
   description: string;
   avatars: { src: string }[];
   link: string;
+  locale?: "pt" | "en";
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -29,7 +30,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   description,
   avatars,
   link,
+  locale = "pt",
 }) => {
+  const copy = locale === "en" ? { readMore: "Read more", viewProject: "View project" } : { readMore: "Ler mais", viewProject: "Ver projeto" };
   return (
     <Column fillWidth gap="m">
       <Carousel
@@ -69,7 +72,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   style={{ margin: "0", width: "fit-content" }}
                   href={href}
                 >
-                  <Text variant="body-default-s">Ler mais</Text>
+                  <Text variant="body-default-s">{copy.readMore}</Text>
                 </SmartLink>
               )}
               {link && (
@@ -78,7 +81,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   style={{ margin: "0", width: "fit-content" }}
                   href={link}
                 >
-                  <Text variant="body-default-s">Ver projeto</Text>
+                  <Text variant="body-default-s">{copy.viewProject}</Text>
                 </SmartLink>
               )}
             </Flex>

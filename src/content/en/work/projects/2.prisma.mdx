@@ -1,0 +1,49 @@
+---
+title: "PRISMA: Real-Time ETL Monitoring"
+publishedAt: "2025-11-20"
+summary: "Full-Stack application for monitoring data pipelines, validating goals and analyzing performance in real time."
+images:
+  - "/images/projects/prisma/dashboard1.jpg"
+  - "/images/projects/prisma/dashboard2.jpg"
+  - "/images/projects/prisma/dashboard3.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Business Analyst"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+## Overview
+
+**PRISMA** is a centralized solution developed to monitor the health and performance of Rede Primavera's ETL (Extraction, Transformation and Load) processes. The application solved the need for real-time visibility into critical jobs, allowing proactive detection of failures and bottlenecks.
+
+## Architecture and Stack
+
+The system was designed with a multi-process architecture to ensure high availability and real-time communication:
+
+- **Backend:** Python with **Flask** and WSGI server **Eventlet** to support asynchronous connections.
+- **Frontend:** Reactive interface built with **HTML5 (Jinja2)**, **Tailwind CSS** and **JavaScript (ES6)**.
+- **Real Time:** Use of **Socket.IO** and **Redis** (Pub/Sub) for instant status updates without the need for refresh.
+- **Infrastructure:** **Nginx** acting as Reverse Proxy and process management via Windows services (NSSM).
+- **Data:** Integration with **Oracle** (TASY) and **PostgreSQL** (Metadata), using **SQLAlchemy** for ORM.
+
+## Main Features
+
+### 1. Real-Time Dashboard
+Visualization of the status of ETL jobs through Gantt charts and log tables updated via WebSocket. Allows you to quickly identify stuck or error-prone processes.
+
+### 2. Validation of Production Goals
+Module that compares, in the background, production data from the Oracle database with Power BI API reports. The system automatically highlights divergences between business units (Hospital and Clinics).
+
+### 3. Automation and Alerts
+- **Telegram bot:** Bidirectional integration that sends failure/success alerts and allows you to check the status of jobs via chat commands.
+- **Oracle Session Management:** Functionality to identify and close sessions that are causing *locks* in the database directly through the interface.
+
+## Challenges and Results
+
+The biggest challenge was orchestrating communication between the web process and the heavy validation tasks in the background without blocking the user interface. The solution was to implement an event-based architecture using **Redis** as *Message Broker*.
+
+**Impact:**
+- **90% reduction in failure detection time** in pipelines.
+- Centralization of monitoring that was previously dispersed in manual logs.
+- Greater reliability in the data presented to the board through automatic validation of goals.

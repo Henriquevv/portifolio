@@ -5,10 +5,15 @@ import { ProjectCard } from "@/components";
 interface ProjectsProps {
   range?: [number, number?];
   exclude?: string[];
+  locale?: "pt" | "en";
 }
 
-export function Projects({ range, exclude }: ProjectsProps) {
-  let allProjects = getPosts(["src", "app", "work", "projects"]);
+export function Projects({ range, exclude, locale = "pt" }: ProjectsProps) {
+  const contentPath = locale === "en"
+    ? ["src", "content", "en", "work", "projects"]
+    : ["src", "app", "work", "projects"];
+  const hrefPrefix = locale === "en" ? "/en" : "";
+  let allProjects = getPosts(contentPath);
 
   // Exclude by slug (exact match)
   if (exclude && exclude.length > 0) {
@@ -29,13 +34,14 @@ export function Projects({ range, exclude }: ProjectsProps) {
         <ProjectCard
           priority={index < 2}
           key={post.slug}
-          href={`/work/${post.slug}`}
+          href={`${hrefPrefix}/work/${post.slug}`}
           images={post.metadata.images}
           title={post.metadata.title}
           description={post.metadata.summary}
           content={post.content}
           avatars={post.metadata.team?.map((member) => ({ src: member.avatar })) || []}
           link={post.metadata.link || ""}
+          locale={locale}
         />
       ))}
     </Column>

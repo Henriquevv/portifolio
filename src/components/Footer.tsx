@@ -1,9 +1,17 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { Row, IconButton, SmartLink, Text } from "@once-ui-system/core";
 import { person, social } from "@/resources";
+import { person as englishPerson, social as englishSocial } from "@/resources/content.en";
 import styles from "./Footer.module.scss";
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const pathname = usePathname() ?? "";
+  const isEnglish = pathname === "/en" || pathname.startsWith("/en/");
+  const footerPerson = isEnglish ? englishPerson : person;
+  const footerSocial = isEnglish ? englishSocial : social;
 
   return (
     <Row as="footer" fillWidth padding="8" horizontal="center" s={{ direction: "column" }}>
@@ -23,7 +31,7 @@ export const Footer = () => {
       >
         <Text variant="body-default-s" onBackground="neutral-strong">
           <Text onBackground="neutral-weak">© {currentYear} /</Text>
-          <Text paddingX="4">{person.name}</Text>
+          <Text paddingX="4">{footerPerson.name}</Text>
           <Text onBackground="neutral-weak">
             {/* Usage of this template requires attribution. Please don't remove the link to Once UI unless you have a Pro license. */}
             / Build your portfolio with{" "}
@@ -31,7 +39,7 @@ export const Footer = () => {
           </Text>
         </Text>
         <Row gap="16">
-          {social.map(
+          {footerSocial.map(
             (item) =>
               item.link && (
                 <IconButton

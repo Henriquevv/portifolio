@@ -44,6 +44,12 @@ export default TimeDisplay;
 
 export const Header = () => {
   const pathname = usePathname() ?? "";
+  const isEnglish = pathname === "/en" || pathname.startsWith("/en/");
+  const localePrefix = isEnglish ? "/en" : "";
+  const routePath = pathname.replace(/^\/en(?=\/|$)/, "") || "/";
+  const labels = isEnglish
+    ? { about: "About", work: "Projects", blog: "Blog", gallery: "Gallery" }
+    : { about: about.label, work: work.label, blog: blog.label, gallery: gallery.label };
 
   return (
     <>
@@ -87,7 +93,7 @@ export const Header = () => {
           >
             <Row gap="4" vertical="center" textVariant="body-default-s" suppressHydrationWarning>
               {routes["/"] && (
-                <ToggleButton prefixIcon="home" href="/" selected={pathname === "/"} />
+                <ToggleButton prefixIcon="home" href={localePrefix || "/"} selected={routePath === "/"} />
               )}
               <Line background="neutral-alpha-medium" vert maxHeight="24" />
               {routes["/about"] && (
@@ -95,16 +101,16 @@ export const Header = () => {
                   <Row s={{ hide: true }}>
                     <ToggleButton
                       prefixIcon="person"
-                      href="/about"
-                      label={about.label}
-                      selected={pathname === "/about"}
+                      href={`${localePrefix}/about`}
+                      label={labels.about}
+                      selected={routePath === "/about"}
                     />
                   </Row>
                   <Row hide s={{ hide: false }}>
                     <ToggleButton
                       prefixIcon="person"
-                      href="/about"
-                      selected={pathname === "/about"}
+                      href={`${localePrefix}/about`}
+                      selected={routePath === "/about"}
                     />
                   </Row>
                 </>
@@ -114,16 +120,16 @@ export const Header = () => {
                   <Row s={{ hide: true }}>
                     <ToggleButton
                       prefixIcon="grid"
-                      href="/work"
-                      label={work.label}
-                      selected={pathname.startsWith("/work")}
+                      href={`${localePrefix}/work`}
+                      label={labels.work}
+                      selected={routePath.startsWith("/work")}
                     />
                   </Row>
                   <Row hide s={{ hide: false }}>
                     <ToggleButton
                       prefixIcon="grid"
-                      href="/work"
-                      selected={pathname.startsWith("/work")}
+                      href={`${localePrefix}/work`}
+                      selected={routePath.startsWith("/work")}
                     />
                   </Row>
                 </>
@@ -133,16 +139,16 @@ export const Header = () => {
                   <Row s={{ hide: true }}>
                     <ToggleButton
                       prefixIcon="book"
-                      href="/blog"
-                      label={blog.label}
-                      selected={pathname.startsWith("/blog")}
+                      href={`${localePrefix}/blog`}
+                      label={labels.blog}
+                      selected={routePath.startsWith("/blog")}
                     />
                   </Row>
                   <Row hide s={{ hide: false }}>
                     <ToggleButton
                       prefixIcon="book"
-                      href="/blog"
-                      selected={pathname.startsWith("/blog")}
+                      href={`${localePrefix}/blog`}
+                      selected={routePath.startsWith("/blog")}
                     />
                   </Row>
                 </>
@@ -152,16 +158,16 @@ export const Header = () => {
                   <Row s={{ hide: true }}>
                     <ToggleButton
                       prefixIcon="gallery"
-                      href="/gallery"
-                      label={gallery.label}
-                      selected={pathname.startsWith("/gallery")}
+                      href={`${localePrefix}/gallery`}
+                      label={labels.gallery}
+                      selected={routePath.startsWith("/gallery")}
                     />
                   </Row>
                   <Row hide s={{ hide: false }}>
                     <ToggleButton
                       prefixIcon="gallery"
-                      href="/gallery"
-                      selected={pathname.startsWith("/gallery")}
+                      href={`${localePrefix}/gallery`}
+                      selected={routePath.startsWith("/gallery")}
                     />
                   </Row>
                 </>

@@ -1,0 +1,156 @@
+---
+title: "Site to analyze and optimize consortium letters"
+publishedAt: "2025-11-20"
+summary: "Full Stack tool for analysis, combinatorial optimization and data mining in the consortium market."
+images:
+  - "/images/projects/site-consorcio/pagina1.jpg"
+  - "/images/projects/site-consorcio/pagina2.jpg"
+team:
+  - name: "Henrique Valentim"
+    role: "Business Analyst"
+    avatar: "/images/avatar.jpg"
+    linkedIn: "https://linkedin.com/in/henriquevalentim1"
+---
+
+
+
+## Letter of Credit Analyzer and Optimizer (Consortia)
+
+**Letter of Credit Analyzer and Optimizer** is a complete platform for financial analysis, web scraping and combinatorial optimization of consortiums.  
+It brings together *Data Engineering*, *Operational Research*, *Clean Architecture* and *Full Stack Development* techniques to deliver a system capable of analyzing thousands of letters in a few milliseconds.
+
+The solution combines:
+
+- Robust Web Scraping with WAF bypass (Cloudflare)  
+- Advanced optimization algorithms (*Branch & Bound*, Pareto Dominance, Fail-Fast)  
+- High performance API with FastAPI  
+- Smart caching with Redis  
+- Persistence with PostgreSQL  
+- Frontend in Vanilla JS with Dark Mode and simulated SPA  
+
+---
+
+
+## System Objective
+
+The project solves a classic problem in the consortium market:  
+**“How to put together the best combination of cards to reach a target credit with the lowest total cost?”**
+
+While most tools just do simple comparison, this system:
+
+- Consolidates data from multiple sources  
+- Uses real mathematical optimization  
+- Allows credit tolerance  
+- Performs multi-restriction analysis (entry, installment, administrator, etc.)  
+
+---
+
+## Main Features
+
+### Automatic Analyzer (Robot)
+- Simultaneous search in multiple administrators and portals  
+- Advanced filters:
+  - Segment (Property / Vehicle)
+  - Specific administrator
+  - Entrance ceiling
+  - Installment ceiling
+  - Desired credit + tolerance
+- Presents the **optimal combination** of cards:
+  - Detailed list of cards
+  - Source of data
+  - Direct links for reference
+
+### Manual Calculator
+- Manual insertion of letters  
+- Automatic goodwill calculation  
+- Visual timeline of installments  
+
+---
+
+## Engineering Structure and Algorithms
+
+### 1. Branch & Bound
+
+The optimization engine implements:
+
+- **Lookahead Pruning**  
+  Uses pre-calculated tables to decide whether a branch will be infeasible before testing it.  
+
+- **Fail-Fast Ordering**  
+  Cards are sorted by total cost, reducing search time exponentially.
+
+---
+
+### 2. Search Space Reduction (Pareto Dominance)
+
+Before starting the algorithm, the system removes:
+
+- Strictly worse cards  
+- Masked duplicates  
+- Inconsistent entries  
+
+This drastically reduces the number of possible combinations.
+
+---
+
+### 3. Parallel Processing
+
+Each administrator is evaluated in parallel using `ThreadPoolExecutor`, allowing:
+
+- Much higher speed
+- Lower latency
+- Horizontal scalability in the cloud
+
+---
+
+## Web Scraping Pipeline
+
+The scraper is designed for Cloudflare-protected websites and unstable HTML structures.
+
+### Technologies and strategies:
+
+- `cloudscraper` to bypass WAFs  
+- `BeautifulSoup4` for secure parsing  
+- Normalization (basic NLP):
+  - Phonetic corrections for administrators  
+  - Robust currency and numeric converters  
+- Hybrid persistence:
+  - PostgreSQL (history)
+  - Redis (cache with TTL)
+
+---
+
+## Technology Stack
+
+###Backend
+- **FastAPI** (ASGI, high performance)
+- **Python 3.9+**
+- **Redis** as distributed cache
+- **PostgreSQL** for persistence
+- **Pandas** for data manipulation
+- **Uvicorn** as ASGI server
+
+### Frontend
+- **HTML + CSS + Vanilla JS**
+- **simulated SPA**
+- **Native Dark Mode**
+- **Requests via Fetch API**
+
+---
+
+## File Structure
+
+```text
+novo-site-railway/
+├── app.py                 # Núcleo da API + Algoritmos de otimização
+├── Procfile               # Configuração de deploy (Railway)
+├── requirements.txt       # Dependências Python
+├── static/
+│   ├── index.html         # Interface principal
+│   ├── main.js            # Controlador do Frontend
+│   └── style.css          # Estilos e Dark Mode
+└── .gitignore
+```
+
+
+
